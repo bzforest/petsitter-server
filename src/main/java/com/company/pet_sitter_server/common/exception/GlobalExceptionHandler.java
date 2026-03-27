@@ -1,0 +1,72 @@
+package com.company.pet_sitter_server.common.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    // 🔥 1. BUSINESS / VALIDATION LOGIC ERROR
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("timestamp", LocalDateTime.now());
+        res.put("status", 400);
+        res.put("error", "Bad Request");
+        res.put("message", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
+    }
+
+    // 🔥 2. @VALID DTO ERROR
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+
+        Map<String, String> fieldErrors = new HashMap<>();
+
+        ex.getBindingResult().getFieldErrors().forEach(err ->
+                fieldErrors.put(err.getField(), err.getDefaultMessage())
+        );
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("timestamp", LocalDateTime.now());
+        res.put("status", 400);
+        res.put("error", "Validation Failed");
+        res.put("fields", fieldErrors);
+
+        return ResponseEntity.badRequest().body(res);
+    }
+
+    // 🔥 3. NOT FOUND (Optional empty, etc.)
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("timestamp", LocalDateTime.now());
+        res.put("status", 404);
+        res.put("error", "Not Found");
+        res.put("message", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(res);
+    }
+
+    // 🔥 4. FALLBACK (กันระบบพัง)
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleAll(Exception ex) {
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("timestamp", LocalDateTime.now());
+        res.put("status", 500);
+        res.put("error", "Internal Server Error");
+        res.put("message", "Something went wrong");
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(res);
+    }
+}
