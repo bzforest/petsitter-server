@@ -1,4 +1,4 @@
-package com.company.pet_sitter_server.entity;
+package com.company.pet_sitter_server.pet_sitter.entity;
 
 import jakarta.persistence.*;
 import java.util.UUID;

@@ -1,12 +1,12 @@
-package com.company.pet_sitter_server.service;
-
-import com.company.pet_sitter_server.dto.PetSitterRequest;
-import com.company.pet_sitter_server.dto.PetSitterResponse;
-import com.company.pet_sitter_server.entity.PetSitter;
-import com.company.pet_sitter_server.repository.PetSitterRepository;
+package com.company.pet_sitter_server.pet_sitter.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import com.company.pet_sitter_server.pet_sitter.dto.PetSitterRequest;
+import com.company.pet_sitter_server.pet_sitter.dto.PetSitterResponse;
+import com.company.pet_sitter_server.pet_sitter.entity.PetSitter;
+import com.company.pet_sitter_server.pet_sitter.repository.PetSitterRepository;
 
 import java.util.List;
 import java.util.UUID;
