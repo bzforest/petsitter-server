@@ -1,4 +1,4 @@
-package com.company.pet_sitter_server.config;
+package com.company.pet_sitter_server.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
