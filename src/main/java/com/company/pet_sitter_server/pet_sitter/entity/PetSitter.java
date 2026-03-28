@@ -2,14 +2,12 @@ package com.company.pet_sitter_server.pet_sitter.entity;
 
 import jakarta.persistence.*;
 import java.util.UUID;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 @Entity
 @Table(name = "pet_sitters")
 public class PetSitter {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Schema(accessMode = Schema.AccessMode.READ_ONLY)
     private UUID id;
 
     private String fullName;
