@@ -14,11 +14,15 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // UUID จาก Supabase Auth — ใช้ link user ของเรากับ Supabase
+    @Column(name = "supabase_id", unique = true)
+    private String supabaseId;
+
     @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
-    private String password;
+    private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -33,14 +37,16 @@ public class User {
     public User() {}
 
     public Long getId() { return id; }
+    public String getSupabaseId() { return supabaseId; }
     public String getEmail() { return email; }
-    public String getPassword() { return password; }
+    public String getPhone() { return phone; }
     public Role getRole() { return role; }
     public UserStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
+    public void setSupabaseId(String supabaseId) { this.supabaseId = supabaseId; }
     public void setEmail(String email) { this.email = email; }
-    public void setPassword(String password) { this.password = password; }
+    public void setPhone(String phone) { this.phone = phone; }
     public void setRole(Role role) { this.role = role; }
     public void setStatus(UserStatus status) { this.status = status; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
