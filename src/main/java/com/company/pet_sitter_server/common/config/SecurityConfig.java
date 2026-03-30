@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -62,5 +63,20 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * กำหนด UserDetailsService bean เพื่อบอก Spring Security ว่าเราจัดการ auth เองผ่าน JWT
+     * ถ้าไม่กำหนด Spring Boot จะ auto-configure InMemoryUserDetailsManager
+     * และแสดง warning "Using generated security password: ..."
+     *
+     * เราโยน UnsupportedOperationException เพราะระบบนี้ไม่ใช้ username/password authentication
+     * จาก Spring Security เลย — ใช้ JwtAuthenticationFilter แทนทั้งหมด
+     */
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return username -> {
+            throw new UnsupportedOperationException("Authentication is handled via JWT");
+        };
     }
 }

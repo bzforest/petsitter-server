@@ -21,7 +21,9 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    // nullable = true ที่ DB เพื่อรองรับ row เดิมที่ยังไม่มีค่า
+    // การบังคับกรอกทำที่ DTO (RegisterRequest) ด้วย @NotBlank แทน
+    @Column
     private String phone;
 
     @Enumerated(EnumType.STRING)

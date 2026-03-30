@@ -23,8 +23,8 @@ public class AuthService {
     private final JwtUtil jwtUtil;
 
     public AuthService(SupabaseAuthClient supabaseAuthClient,
-                       UserRepository userRepository,
-                       JwtUtil jwtUtil) {
+            UserRepository userRepository,
+            JwtUtil jwtUtil) {
         this.supabaseAuthClient = supabaseAuthClient;
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
@@ -62,10 +62,11 @@ public class AuthService {
 
         // ดึง supabase user id จาก response
         // response จะมีรูปแบบ: { "id": "uuid...", "email": "...", ... }
-        String supabaseUserId = (String) supabaseResponse.get("id");
-        if (supabaseUserId == null) {
-            throw new RuntimeException("Failed to create user in Supabase: " + supabaseResponse);
+        Map supabaseUser = (Map) supabaseResponse.get("user");
+        if (supabaseUser == null) {
+            throw new RuntimeException("Failed to create user in Supabase");
         }
+        String supabaseUserId = (String) supabaseUser.get("id");
 
         // บันทึก user ลง DB ของเรา (ไม่เก็บ password!)
         User user = new User();
@@ -81,8 +82,7 @@ public class AuthService {
         String token = jwtUtil.generateToken(
                 savedUser.getEmail(),
                 savedUser.getRole().name(),
-                savedUser.getId()
-        );
+                savedUser.getId());
 
         return new AuthResponse(token, savedUser.getEmail(), savedUser.getRole().name(), savedUser.getId());
     }
@@ -101,7 +101,8 @@ public class AuthService {
         Map supabaseResponse = supabaseAuthClient.signIn(req.getEmail(), req.getPassword());
 
         // ดึง user object ออกจาก response
-        // login response format: { "user": { "id": "uuid", "email": "..." }, "access_token": "..." }
+        // login response format: { "user": { "id": "uuid", "email": "..." },
+        // "access_token": "..." }
         Map supabaseUser = (Map) supabaseResponse.get("user");
         if (supabaseUser == null) {
             throw new RuntimeException("Login failed");
@@ -120,8 +121,7 @@ public class AuthService {
         String token = jwtUtil.generateToken(
                 user.getEmail(),
                 user.getRole().name(),
-                user.getId()
-        );
+                user.getId());
 
         return new AuthResponse(token, user.getEmail(), user.getRole().name(), user.getId());
     }
