@@ -7,7 +7,10 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    // ค้นหา user จาก email
     Optional<User> findByEmail(String email);
+
+    // ตรวจสอบว่า email นี้มีอยู่ในระบบหรือยัง
     boolean existsByEmail(String email);
 
     // ค้นหา user จาก supabase_id (ใช้ตอน login ด้วย Supabase token)

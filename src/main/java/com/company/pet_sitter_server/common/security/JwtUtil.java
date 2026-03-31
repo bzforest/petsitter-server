@@ -29,9 +29,9 @@ public class JwtUtil {
     /**
      * สร้าง JWT token
      * ข้อมูลที่ฝังใน token (claims):
-     *   - subject = email ของ user
-     *   - "role"  = role ของ user (USER / SITTER / ADMIN)
-     *   - "userId" = id ใน DB ของเรา
+     * - subject = email ของ user
+     * - "role" = role ของ user (USER / SITTER / ADMIN)
+     * - "userId" = id ใน DB ของเรา
      */
     public String generateToken(String email, String role, Long userId) {
         return Jwts.builder()

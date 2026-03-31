@@ -36,8 +36,10 @@ public class User {
 
     private LocalDateTime createdAt;
 
+    // Constructor
     public User() {}
 
+    // Getters
     public Long getId() { return id; }
     public String getSupabaseId() { return supabaseId; }
     public String getEmail() { return email; }
@@ -46,6 +48,7 @@ public class User {
     public UserStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
+    // Setters
     public void setSupabaseId(String supabaseId) { this.supabaseId = supabaseId; }
     public void setEmail(String email) { this.email = email; }
     public void setPhone(String phone) { this.phone = phone; }
