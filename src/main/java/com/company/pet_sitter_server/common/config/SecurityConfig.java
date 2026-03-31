@@ -66,11 +66,13 @@ public class SecurityConfig {
     }
 
     /**
-     * กำหนด UserDetailsService bean เพื่อบอก Spring Security ว่าเราจัดการ auth เองผ่าน JWT
+     * กำหนด UserDetailsService bean เพื่อบอก Spring Security ว่าเราจัดการ auth
+     * เองผ่าน JWT
      * ถ้าไม่กำหนด Spring Boot จะ auto-configure InMemoryUserDetailsManager
      * และแสดง warning "Using generated security password: ..."
      *
-     * เราโยน UnsupportedOperationException เพราะระบบนี้ไม่ใช้ username/password authentication
+     * เราโยน UnsupportedOperationException เพราะระบบนี้ไม่ใช้ username/password
+     * authentication
      * จาก Spring Security เลย — ใช้ JwtAuthenticationFilter แทนทั้งหมด
      */
     @Bean

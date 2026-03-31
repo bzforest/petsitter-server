@@ -58,12 +58,12 @@ public class AuthService {
 
         // เรียก Supabase Auth API → สร้าง user ใน Supabase
         // Supabase จะ hash password อย่างปลอดภัย (bcrypt)
-        Map supabaseResponse = supabaseAuthClient.signUp(req.getEmail(), req.getPassword());
+        Map<String, Object> supabaseResponse = supabaseAuthClient.signUp(req.getEmail(), req.getPassword());
 
         // ดึง supabase user id จาก response
         // response จะมีรูปแบบ: { "id": "uuid...", "email": "...", ... }
-        Map supabaseUser = (Map) supabaseResponse.get("user");
-        if (supabaseUser == null) {
+        Object userObject = supabaseResponse.get("user");
+        if (!(userObject instanceof Map<?, ?> supabaseUser)) {
             throw new RuntimeException("Failed to create user in Supabase");
         }
         String supabaseUserId = (String) supabaseUser.get("id");
@@ -98,13 +98,13 @@ public class AuthService {
     public AuthResponse login(LoginRequest req) {
 
         // Supabase จะ throw error ถ้า email/password ผิด
-        Map supabaseResponse = supabaseAuthClient.signIn(req.getEmail(), req.getPassword());
+        Map<String, Object> supabaseResponse = supabaseAuthClient.signIn(req.getEmail(), req.getPassword());
 
         // ดึง user object ออกจาก response
         // login response format: { "user": { "id": "uuid", "email": "..." },
         // "access_token": "..." }
-        Map supabaseUser = (Map) supabaseResponse.get("user");
-        if (supabaseUser == null) {
+        Object userObject = supabaseResponse.get("user");
+        if (!(userObject instanceof Map<?, ?>)) {
             throw new RuntimeException("Login failed");
         }
 

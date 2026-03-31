@@ -1,6 +1,7 @@
 package com.company.pet_sitter_server.auth.client;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -42,7 +43,7 @@ public class SupabaseAuthClient {
      *   - email: email
      *   - access_token: JWT จาก Supabase (เราไม่ใช้ตัวนี้ เราจะออก JWT เองแทน)
      */
-    public Map signUp(String email, String password) {
+    public Map<String, Object> signUp(String email, String password) {
         return restClient.post()
                 .uri("/auth/v1/signup")
                 .header("apikey", supabaseApiKey)
@@ -50,7 +51,7 @@ public class SupabaseAuthClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("email", email, "password", password))
                 .retrieve()
-                .body(Map.class);
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
     }
 
     /**
@@ -62,7 +63,7 @@ public class SupabaseAuthClient {
      *   - user.id: UUID ของ user
      *   - user.email: email
      */
-    public Map signIn(String email, String password) {
+    public Map<String, Object> signIn(String email, String password) {
         return restClient.post()
                 .uri("/auth/v1/token?grant_type=password")
                 .header("apikey", supabaseApiKey)
@@ -70,6 +71,6 @@ public class SupabaseAuthClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("email", email, "password", password))
                 .retrieve()
-                .body(Map.class);
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
     }
 }
