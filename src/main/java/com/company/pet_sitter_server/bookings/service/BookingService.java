@@ -10,7 +10,6 @@ import com.company.pet_sitter_server.pets.repository.PetRepository;
 import com.company.pet_sitter_server.user.entity.SitterProfile;
 import com.company.pet_sitter_server.user.repository.SitterProfileRepository;
 import com.company.pet_sitter_server.user.repository.UserProfileRepository;
-import com.company.pet_sitter_server.user.entity.UserProfile;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
