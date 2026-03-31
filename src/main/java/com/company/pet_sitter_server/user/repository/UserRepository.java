@@ -7,9 +7,12 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    //  เช็ค email ซ้ำ
+    // ค้นหา user จาก email
     Optional<User> findByEmail(String email);
 
-    //  เพิ่มตัวนี้ (เร็วกว่า Optional)
+    // ตรวจสอบว่า email นี้มีอยู่ในระบบหรือยัง
     boolean existsByEmail(String email);
+
+    // ค้นหา user จาก supabase_id (ใช้ตอน login ด้วย Supabase token)
+    Optional<User> findBySupabaseId(String supabaseId);
 }

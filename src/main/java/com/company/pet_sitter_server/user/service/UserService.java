@@ -39,7 +39,6 @@ public class UserService {
 
         User user = new User();
         user.setEmail(req.getEmail());
-        user.setPassword(req.getPassword());
         user.setRole(role);
         user.setStatus(UserStatus.ACTIVE);
         user.setCreatedAt(LocalDateTime.now());

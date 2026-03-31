@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -57,7 +58,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(res);
     }
 
-    // 🔥 4. FALLBACK (กันระบบพัง)
+    // 🔥 4. SUPABASE AUTH ERROR (email/password ผิด, email ซ้ำใน Supabase ฯลฯ)
+    @ExceptionHandler(HttpClientErrorException.class)
+    public ResponseEntity<Map<String, Object>> handleSupabaseError(HttpClientErrorException ex) {
+        Map<String, Object> res = new HashMap<>();
+        res.put("timestamp", LocalDateTime.now());
+        res.put("status", ex.getStatusCode().value());
+        res.put("error", "Authentication Error");
+        res.put("message", "Invalid email or password");
+        return ResponseEntity.status(ex.getStatusCode()).body(res);
+    }
+
+    // 🔥 5. FALLBACK (กันระบบพัง)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleAll(Exception ex) {
 
