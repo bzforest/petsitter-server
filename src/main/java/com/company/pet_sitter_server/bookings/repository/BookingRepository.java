@@ -15,4 +15,7 @@ public interface BookingRepository extends JpaRepository<Bookings, Long> {
 
     // booking history ของ user
     List<Bookings> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // booking history ของ sitter
+    List<Bookings> findBySitterIdOrderByCreatedAtDesc(Long sitterId);
 }

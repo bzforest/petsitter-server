@@ -53,7 +53,7 @@ public class BookingService {
                 BANGKOK_ZONE);
 
         if (endBangkok.isBefore(startBangkok)) {
-            throw new RuntimeException("End time must be after start time");
+            throw new IllegalArgumentException("End time must be after start time");
         }
 
         long minutes = Duration.between(startBangkok, endBangkok).toMinutes();
@@ -111,6 +111,16 @@ public class BookingService {
                 .map(b -> toResponse(b, null))
                 .collect(Collectors.toList());
     }
+    
+    // ============================================================
+    // GET /api/bookings/sitter/me — ดึงรายการจองที่ Sitter คนนี้ถูกจอง
+    // ============================================================
+    public List<BookingResponse> getBookingsBySitter(Long sitterId) {
+        return bookingRepository.findBySitterIdOrderByCreatedAtDesc(sitterId)
+                .stream()
+                .map(b -> toResponse(b, null))
+                .collect(Collectors.toList());
+    }
 
     // ============================================================
     // PATCH /api/bookings/{id}/confirm-cash — ยืนยัน Cash payment
@@ -121,10 +131,10 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
 
         if (!BookingStatus.PENDING.equals(booking.getStatus())) {
-            throw new RuntimeException("Booking is not in PENDING status");
+            throw new IllegalArgumentException("Booking is not in PENDING status");
         }
         if (!"CASH".equals(booking.getPaymentMethod())) {
-            throw new RuntimeException("This booking is not a cash payment");
+            throw new IllegalArgumentException("This booking is not a cash payment");
         }
 
         booking.setStatus(BookingStatus.PAID);
@@ -135,19 +145,15 @@ public class BookingService {
     // PATCH /api/bookings/{id}/cancel — ยกเลิก Booking
     // ============================================================
     @Transactional
-    public BookingResponse cancelBooking(Long id, Long requestingUserId) {
+    public BookingResponse cancelBooking(Long id) {
         Bookings booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
 
-        if (!booking.getUserId().equals(requestingUserId)) {
-            throw new RuntimeException("You are not authorized to cancel this booking");
-        }
-
         if (BookingStatus.COMPLETED.equals(booking.getStatus())) {
-            throw new RuntimeException("Cannot cancel a completed booking");
+            throw new IllegalArgumentException("Cannot cancel a completed booking");
         }
         if (BookingStatus.CANCELLED.equals(booking.getStatus())) {
-            throw new RuntimeException("Booking is already cancelled");
+            throw new IllegalArgumentException("Booking is already cancelled");
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
@@ -160,6 +166,7 @@ public class BookingService {
     private BookingResponse toResponse(Bookings booking, String clientSecret) {
         BookingResponse response = new BookingResponse();
         response.setId(booking.getId());
+        response.setUserId(booking.getUserId());
         response.setPaymentMethod(booking.getPaymentMethod());
         response.setTotalPrice(booking.getTotalPrice());
         response.setStatus(booking.getStatus().name());

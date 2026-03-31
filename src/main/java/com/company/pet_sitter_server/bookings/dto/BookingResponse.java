@@ -8,6 +8,7 @@ import lombok.Data;
 @Data
 public class BookingResponse {
     private Long id;
+    private Long userId;
     private String sitterName;
     private String petName;
     private LocalDate startDate;

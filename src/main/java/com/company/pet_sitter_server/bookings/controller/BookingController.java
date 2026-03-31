@@ -32,9 +32,9 @@ public class BookingController {
     // POST /api/bookings — สร้าง booking ใหม่
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
-        @RequestBody BookingRequest request,
-        HttpServletRequest httpRequest) {
-        
+            @RequestBody BookingRequest request,
+            HttpServletRequest httpRequest) {
+
         Long userId = extractUserIdFromToken(httpRequest);
         request.setUserId(userId);
         BookingResponse response = bookingService.createBooking(request);
@@ -47,21 +47,37 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.getBookingById(id));
     }
 
-    // GET /api/bookings/user/{userId} — ดึง booking history ของ user
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<BookingResponse>> getBookingsByUser(@PathVariable Long userId) {
+    // GET /api/bookings/user/me — ดึง booking history ของ user
+    @GetMapping("/user/me")
+    public ResponseEntity<List<BookingResponse>> getBookingsByUser(
+            HttpServletRequest httpRequest) {
+        Long userId = extractUserIdFromToken(httpRequest);
         return ResponseEntity.ok(bookingService.getBookingsByUser(userId));
+    }
+
+    // GET /api/bookings/sitter/me — ดึงรายการจองที่ Sitter คนนี้ถูกจอง
+    @GetMapping("/sitter/me")
+    public ResponseEntity<List<BookingResponse>> getBookingsBySitter(
+            HttpServletRequest httpRequest) {
+
+        String role = jwtUtil.extractRole(
+                httpRequest.getHeader("Authorization").substring(7));
+        if (!role.equals("SITTER")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Long sitterId = extractUserIdFromToken(httpRequest);
+        return ResponseEntity.ok(bookingService.getBookingsBySitter(sitterId));
     }
 
     // PATCH /api/bookings/{id}/confirm-cash — ยืนยัน Cash payment → PAID
     @PatchMapping("/{id}/confirm-cash")
     public ResponseEntity<BookingResponse> confirmCash(
-        @PathVariable Long id,
-        HttpServletRequest httpServletRequest) {
+            @PathVariable Long id,
+            HttpServletRequest httpServletRequest) {
 
         String role = jwtUtil.extractRole(
-            httpServletRequest.getHeader("Authorization").substring(7)
-        );
+                httpServletRequest.getHeader("Authorization").substring(7));
         if (!role.equals("SITTER")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
@@ -71,10 +87,14 @@ public class BookingController {
     // PATCH /api/bookings/{id}/cancel — ยกเลิก booking
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<BookingResponse> cancelBooking(
-        @PathVariable Long id,
-        HttpServletRequest httpRequest) {
-        
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+
         Long userId = extractUserIdFromToken(httpRequest);
-        return ResponseEntity.ok(bookingService.cancelBooking(id, userId));
+        BookingResponse booking = bookingService.getBookingById(id);
+        if (!booking.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(bookingService.cancelBooking(id));
     }
 }
