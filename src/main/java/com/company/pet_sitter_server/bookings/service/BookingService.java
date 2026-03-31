@@ -135,9 +135,13 @@ public class BookingService {
     // PATCH /api/bookings/{id}/cancel — ยกเลิก Booking
     // ============================================================
     @Transactional
-    public BookingResponse cancelBooking(Long id) {
+    public BookingResponse cancelBooking(Long id, Long requestingUserId) {
         Bookings booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
+
+        if (!booking.getUserId().equals(requestingUserId)) {
+            throw new RuntimeException("You are not authorized to cancel this booking");
+        }
 
         if (BookingStatus.COMPLETED.equals(booking.getStatus())) {
             throw new RuntimeException("Cannot cancel a completed booking");
