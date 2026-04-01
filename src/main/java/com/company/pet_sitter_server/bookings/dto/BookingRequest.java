@@ -10,7 +10,7 @@ public class BookingRequest {
     private Long userId;
     private Long sitterId;
     private Long petId;
-    private Long sitterServiceId;
+
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalTime startTime;

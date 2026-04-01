@@ -66,7 +66,7 @@ public class BookingService {
         booking.setUserId(request.getUserId());
         booking.setSitterId(sitterProfile.getUser().getId());
         booking.setPetId(request.getPetId());
-        booking.setSitterServiceId(request.getSitterServiceId());
+
         booking.setPricePerHour(pricePerHour);
         booking.setStartDate(request.getStartDate());
         booking.setEndDate(request.getEndDate());

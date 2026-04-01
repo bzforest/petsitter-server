@@ -30,8 +30,7 @@ public class Bookings {
     @Column(name = "pet_id")
     private Long petId; 
 
-    @Column(name = "sitter_service_id")
-    private Long sitterServiceId;
+
 
     // เก็บราคา ณ วันที่จองไว้ด้วย เผื่อเพื่อนเปลี่ยนราคาทีหลัง ประวัติเราจะได้ไม่เพี้ยน
     @Column(name = "price_per_hour")
