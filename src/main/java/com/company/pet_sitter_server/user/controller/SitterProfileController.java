@@ -25,7 +25,7 @@ public class SitterProfileController {
         return ResponseEntity.ok(service.create(req));
     }
 
-    // 🔥 PAGINATION + FILTER + SORT
+    //  PAGINATION + FILTER + SORT
     @GetMapping
     public ResponseEntity<Page<SitterProfileResponse>> getAll(
             @RequestParam(required = false) Double minPrice,
