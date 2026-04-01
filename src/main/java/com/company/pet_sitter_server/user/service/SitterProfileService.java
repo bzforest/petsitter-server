@@ -1,5 +1,7 @@
 package com.company.pet_sitter_server.user.service;
 
+import com.company.pet_sitter_server.address.entity.Address;
+import com.company.pet_sitter_server.address.repository.AddressRepository;
 import com.company.pet_sitter_server.enums.Role;
 import com.company.pet_sitter_server.user.dto.SitterProfileRequest;
 import com.company.pet_sitter_server.user.dto.SitterProfileResponse;
@@ -18,13 +20,15 @@ public class SitterProfileService {
 
     private final SitterProfileRepository repo;
     private final UserRepository userRepo;
+    private final AddressRepository addressRepo;
 
-    public SitterProfileService(SitterProfileRepository repo, UserRepository userRepo) {
+    public SitterProfileService(SitterProfileRepository repo, UserRepository userRepo, AddressRepository addressRepo) {
         this.repo = repo;
         this.userRepo = userRepo;
+        this.addressRepo = addressRepo;
     }
 
-    // ✅ CREATE + VALIDATION
+    // CREATE + VALIDATION
     public SitterProfileResponse create(SitterProfileRequest req) {
 
         // 🔥 กันซ้ำ
@@ -46,17 +50,30 @@ public class SitterProfileService {
         }
 
         SitterProfile profile = new SitterProfile();
+        profile.setUser(user);
         profile.setBio(req.bio);
         profile.setPricePerHour(req.pricePerHour);
         profile.setExperience(req.experience);
-        profile.setUser(user);
+        profile.setExperienceYears(req.experienceYears);
+        profile.setTradeName(req.tradeName);
+        profile.setPetTypes(req.petTypes);
+        profile.setPlaceDescription(req.placeDescription);
+        profile.setIdNumber(req.idNumber);
+        profile.setDateOfBirth(req.dateOfBirth);
+        profile.setPhone(user.getPhone());
+
+        if (req.addressId != null) {
+            Address address = addressRepo.findById(req.addressId)
+                    .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+            profile.setAddress(address);
+        }
 
         repo.save(profile);
 
         return mapToResponse(profile);
     }
 
-    // 🔥 PAGINATION + FILTER + SORT
+    // PAGINATION + FILTER + SORT
     public Page<SitterProfileResponse> getAll(
             Double minPrice,
             Double maxPrice,
@@ -98,10 +115,22 @@ public class SitterProfileService {
     private SitterProfileResponse mapToResponse(SitterProfile profile) {
         SitterProfileResponse res = new SitterProfileResponse();
         res.id = profile.getId();
+        res.userId = profile.getUser() != null ? profile.getUser().getId() : null;
         res.bio = profile.getBio();
         res.pricePerHour = profile.getPricePerHour();
         res.experience = profile.getExperience();
-        res.userId = profile.getUser().getId();
+        res.experienceYears = profile.getExperienceYears();
+        res.tradeName = profile.getTradeName();
+        res.petTypes = profile.getPetTypes();
+        res.placeDescription = profile.getPlaceDescription();
+        res.phone = profile.getPhone();
+        res.idNumber = profile.getIdNumber();
+        res.dateOfBirth = profile.getDateOfBirth();
+        res.status = profile.getStatus();
+        res.isApproved = profile.getIsApproved();
+        res.ratingAvg = profile.getRatingAvg();
+        res.rejectReason = profile.getRejectReason();
+        res.addressId = profile.getAddress() != null ? profile.getAddress().getId() : null;
         return res;
     }
 }
