@@ -2,12 +2,15 @@ package com.company.pet_sitter_server.user.controller;
 
 import com.company.pet_sitter_server.user.dto.SitterProfileRequest;
 import com.company.pet_sitter_server.user.dto.SitterProfileResponse;
+import com.company.pet_sitter_server.user.dto.SitterProfileUpdateRequest;
 import com.company.pet_sitter_server.user.service.SitterProfileService;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.data.domain.Page;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/sitter-profiles")
@@ -19,13 +22,34 @@ public class SitterProfileController {
         this.service = service;
     }
 
+    // GET profile ของ user ที่ login อยู่
+    @GetMapping("/me")
+    public ResponseEntity<SitterProfileResponse> getMe(Authentication auth) {
+        return ResponseEntity.ok(service.getMe(auth.getName()));
+    }
+
+    // UPDATE profile
+    @PutMapping("/{id}")
+    public ResponseEntity<SitterProfileResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody SitterProfileUpdateRequest req
+    ) {
+        return ResponseEntity.ok(service.update(id, req));
+    }
+
+    // REQUEST APPROVAL
+    @PatchMapping("/{id}/request-approval")
+    public ResponseEntity<SitterProfileResponse> requestApproval(@PathVariable Long id) {
+        return ResponseEntity.ok(service.requestApproval(id));
+    }
+
     // CREATE
     @PostMapping
-    public ResponseEntity<SitterProfileResponse> create(@RequestBody SitterProfileRequest req) {
+    public ResponseEntity<SitterProfileResponse> create(@Valid @RequestBody SitterProfileRequest req) {
         return ResponseEntity.ok(service.create(req));
     }
 
-    //  PAGINATION + FILTER + SORT
+    // PAGINATION + FILTER + SORT
     @GetMapping
     public ResponseEntity<Page<SitterProfileResponse>> getAll(
             @RequestParam(required = false) Double minPrice,
