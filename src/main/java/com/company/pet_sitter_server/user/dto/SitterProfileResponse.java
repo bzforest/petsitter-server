@@ -8,6 +8,8 @@ import java.util.List;
 public class SitterProfileResponse {
     public Long id;
     public Long userId;
+    public String fullName;
+    public String profileImage;
     public String email;
     public String bio;
     public Double pricePerHour;

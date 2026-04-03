@@ -2,6 +2,7 @@ package com.company.pet_sitter_server.user.service;
 
 import com.company.pet_sitter_server.address.entity.Address;
 import com.company.pet_sitter_server.address.repository.AddressRepository;
+import com.company.pet_sitter_server.address.util.ThaiAddressNormalizer;
 import com.company.pet_sitter_server.enums.Role;
 import com.company.pet_sitter_server.enums.SitterStatus;
 import com.company.pet_sitter_server.user.dto.SitterProfileRequest;
@@ -9,7 +10,9 @@ import com.company.pet_sitter_server.user.dto.SitterProfileResponse;
 import com.company.pet_sitter_server.user.dto.SitterProfileUpdateRequest;
 import com.company.pet_sitter_server.user.entity.SitterProfile;
 import com.company.pet_sitter_server.user.entity.User;
+import com.company.pet_sitter_server.user.entity.UserProfile;
 import com.company.pet_sitter_server.user.repository.SitterProfileRepository;
+import com.company.pet_sitter_server.user.repository.UserProfileRepository;
 import com.company.pet_sitter_server.user.repository.UserRepository;
 
 import org.springframework.data.domain.*;
@@ -26,11 +29,18 @@ public class SitterProfileService {
     private final SitterProfileRepository repo;
     private final UserRepository userRepo;
     private final AddressRepository addressRepo;
+    private final UserProfileRepository userProfileRepo;
 
-    public SitterProfileService(SitterProfileRepository repo, UserRepository userRepo, AddressRepository addressRepo) {
+    public SitterProfileService(
+            SitterProfileRepository repo,
+            UserRepository userRepo,
+            AddressRepository addressRepo,
+            UserProfileRepository userProfileRepo
+    ) {
         this.repo = repo;
         this.userRepo = userRepo;
         this.addressRepo = addressRepo;
+        this.userProfileRepo = userProfileRepo;
     }
 
     // CREATE + VALIDATION
@@ -96,18 +106,23 @@ public class SitterProfileService {
         return mapToResponse(profile);
     }
 
-    // UPDATE
+    // UPDATE — ข้อมูลเต็ม (trade / gallery / map / address) รับได้เฉพาะเมื่อ APPROVED เท่านั้น
     public SitterProfileResponse update(Long id, SitterProfileUpdateRequest req) {
         SitterProfile profile = repo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Sitter profile not found"));
 
-        if (req.bio != null) profile.setBio(req.bio);
-        if (req.pricePerHour != null) profile.setPricePerHour(req.pricePerHour);
-        if (req.experience != null) {
-            validateExperience(req.experience);
-            profile.setExperience(req.experience);
-        }
         User user = profile.getUser();
+        boolean approved = profile.getStatus() == SitterStatus.APPROVED;
+
+        if (req.fullName != null && user != null) {
+            upsertUserFullName(user, req.fullName);
+        }
+        if (req.profileImage != null) {
+            String p = req.profileImage.trim();
+            profile.setProfileImage(p.isEmpty() ? null : p);
+        }
+        if (req.bio != null) profile.setBio(req.bio);
+
         boolean userDirty = false;
         if (req.phone != null) {
             profile.setPhone(req.phone);
@@ -127,6 +142,16 @@ public class SitterProfileService {
         if (userDirty && user != null) {
             userRepo.save(user);
         }
+
+        if (!approved) {
+            return mapToResponse(repo.save(profile));
+        }
+
+        if (req.pricePerHour != null) profile.setPricePerHour(req.pricePerHour);
+        if (req.experience != null) {
+            validateExperience(req.experience);
+            profile.setExperience(req.experience);
+        }
         if (req.tradeName != null) profile.setTradeName(req.tradeName);
         if (req.petTypes != null) profile.setPetTypes(req.petTypes);
         if (req.services != null) profile.setServices(req.services);
@@ -135,17 +160,23 @@ public class SitterProfileService {
         if (req.dateOfBirth != null) profile.setDateOfBirth(req.dateOfBirth);
         if (req.latitude != null) profile.setLatitude(req.latitude);
         if (req.longitude != null) profile.setLongitude(req.longitude);
-        if (req.gallery != null) profile.setGallery(req.gallery);
+        if (req.gallery != null) {
+            if (req.gallery.size() > 10) {
+                throw new IllegalArgumentException("Gallery must have at most 10 images");
+            }
+            profile.setGallery(req.gallery);
+        }
 
-        // อัปเดต Address — ถ้าส่ง addressLine มาให้ create/update Address record
         if (req.addressLine != null) {
             Address address = profile.getAddress() != null
                     ? profile.getAddress()
                     : new Address();
             address.setAddressLine(req.addressLine);
-            address.setDistrict(req.district);
-            address.setSubDistrict(req.subDistrict);
-            address.setProvince(req.province);
+            ThaiAddressNormalizer.FlatThaiAddress triple =
+                    ThaiAddressNormalizer.reconcileBangkokFlatFields(req.province, req.district, req.subDistrict);
+            address.setDistrict(ThaiAddressNormalizer.normalizeDistrict(triple.district));
+            address.setSubDistrict(ThaiAddressNormalizer.normalizeSubDistrict(triple.subDistrict));
+            address.setProvince(ThaiAddressNormalizer.normalizeProvince(triple.province));
             address.setPostalCode(req.postalCode);
             address.setUser(profile.getUser());
             addressRepo.save(address);
@@ -159,6 +190,38 @@ public class SitterProfileService {
     public SitterProfileResponse requestApproval(Long id) {
         SitterProfile profile = repo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Sitter profile not found"));
+        User user = profile.getUser();
+        if (user == null) {
+            throw new IllegalArgumentException("Invalid profile");
+        }
+
+        String fullName = userProfileRepo.findByUser_Id(user.getId())
+                .map(UserProfile::getFullName)
+                .map(String::trim)
+                .orElse("");
+        if (fullName.isEmpty()) {
+            throw new IllegalArgumentException("Full name is required before requesting approval");
+        }
+
+        String phone = profile.getPhone();
+        if (phone == null || !phone.matches("^\\d{10}$")) {
+            throw new IllegalArgumentException("Phone number must be exactly 10 digits");
+        }
+
+        String email = user.getEmail();
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        int at = email.indexOf('@');
+        if (at <= 0 || !email.substring(at + 1).contains(".")) {
+            throw new IllegalArgumentException("Enter a valid email address");
+        }
+
+        String bio = profile.getBio();
+        if (bio == null || bio.trim().isEmpty()) {
+            throw new IllegalArgumentException("Introduction is required before requesting approval");
+        }
+
         profile.setStatus(SitterStatus.WAITING_FOR_APPROVE);
         profile.setRejectReason(null);
         return mapToResponse(repo.save(profile));
@@ -216,8 +279,12 @@ public class SitterProfileService {
         if (profile.getUser() != null) {
             res.userId = profile.getUser().getId();
             res.email = profile.getUser().getEmail();
+            res.fullName = userProfileRepo.findByUser_Id(profile.getUser().getId())
+                    .map(UserProfile::getFullName)
+                    .orElse(null);
         }
 
+        res.profileImage = profile.getProfileImage();
         res.bio = profile.getBio();
         res.pricePerHour = profile.getPricePerHour();
         res.experience = profile.getExperience();
@@ -241,9 +308,9 @@ public class SitterProfileService {
             Address addr = profile.getAddress();
             res.addressId = addr.getId();
             res.addressLine = addr.getAddressLine();
-            res.district = addr.getDistrict();
-            res.subDistrict = addr.getSubDistrict();
-            res.province = addr.getProvince();
+            res.district = ThaiAddressNormalizer.normalizeDistrict(addr.getDistrict());
+            res.subDistrict = ThaiAddressNormalizer.normalizeSubDistrict(addr.getSubDistrict());
+            res.province = ThaiAddressNormalizer.normalizeProvince(addr.getProvince());
             res.postalCode = addr.getPostalCode();
         }
 
@@ -257,5 +324,17 @@ public class SitterProfileService {
             throw new IllegalArgumentException(
                     "Experience (years) must be between " + EXPERIENCE_MIN + " and " + EXPERIENCE_MAX);
         }
+    }
+
+    private void upsertUserFullName(User user, String fullName) {
+        String trimmed = fullName == null ? "" : fullName.trim();
+        UserProfile up = userProfileRepo.findByUser_Id(user.getId()).orElseGet(() -> {
+            UserProfile p = new UserProfile();
+            p.setUser(user);
+            p.setPhone(user.getPhone());
+            return p;
+        });
+        up.setFullName(trimmed.isEmpty() ? null : trimmed);
+        userProfileRepo.save(up);
     }
 }

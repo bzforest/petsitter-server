@@ -4,11 +4,16 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.util.List;
 
 public class SitterProfileUpdateRequest {
+    @Size(max = 200)
+    public String fullName;
+    @Size(max = 2000)
+    public String profileImage;
     public String bio;
     public Double pricePerHour;
     @Min(0) @Max(100)
