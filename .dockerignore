@@ -1,0 +1,22 @@
+# Exclude files/folders from Docker build context
+run
+.git
+.gitignore
+.dockerignore
+.mvn
+.vscode
+target/
+build/
+bin/
+out/
+mvnw
+mvnw.cmd
+pom.xml.releaseBackup
+release.properties
+*.log
+*.tmp
+.DS_Store
+**/.DS_Store
+HELP.md
+application-local.properties
+.env
