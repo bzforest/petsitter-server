@@ -1,18 +1,16 @@
 # Exclude files/folders from Docker build context
+# Still ignore 'run' because it conflicts with Docker internal paths
 run
+
+# Basic excludes
 .git
 .gitignore
 .dockerignore
-.mvn
 .vscode
 target/
 build/
 bin/
 out/
-mvnw
-mvnw.cmd
-pom.xml.releaseBackup
-release.properties
 *.log
 *.tmp
 .DS_Store
@@ -20,3 +18,5 @@ release.properties
 HELP.md
 application-local.properties
 .env
+
+# DO NOT ignore mvnw or .mvn folders because the Dockerfile needs them!
