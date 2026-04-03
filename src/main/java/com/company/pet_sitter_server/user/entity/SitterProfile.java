@@ -41,6 +41,8 @@ public class SitterProfile {
 
     private Double ratingAvg = 0.0;
     private String rejectReason;
+    /** Public URL of profile photo (e.g. Supabase) */
+    private String profileImage;
     private String services;
     private Double latitude;
     private Double longitude;
@@ -74,6 +76,7 @@ public class SitterProfile {
     public Boolean getIsApproved() { return isApproved; }
     public Double getRatingAvg() { return ratingAvg; }
     public String getRejectReason() { return rejectReason; }
+    public String getProfileImage() { return profileImage; }
     public String getServices() { return services; }
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
@@ -97,6 +100,7 @@ public class SitterProfile {
     }
     public void setRatingAvg(Double ratingAvg) { this.ratingAvg = ratingAvg; }
     public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
     public void setServices(String services) { this.services = services; }
     public void setLatitude(Double latitude) { this.latitude = latitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }

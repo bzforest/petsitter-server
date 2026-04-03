@@ -39,6 +39,9 @@ public class SecurityConfig {
                 // กำหนดกฎการเข้าถึง endpoint
                 .authorizeHttpRequests(auth -> auth
 
+                        // CORS preflight — ไม่มี Authorization; ต้อง permit ไม่งั้นได้ 403
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         // ✅ Public endpoints — ไม่ต้อง login
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
