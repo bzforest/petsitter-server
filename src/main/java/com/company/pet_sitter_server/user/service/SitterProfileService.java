@@ -186,6 +186,29 @@ public class SitterProfileService {
         return mapToResponse(repo.save(profile));
     }
 
+    // APPROVE
+    public SitterProfileResponse approve(Long id) {
+        SitterProfile profile = repo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Sitter profile not found"));
+        if (profile.getStatus() != SitterStatus.WAITING_FOR_APPROVE) {
+            throw new IllegalArgumentException("Profile is not pending approval");
+        }
+        profile.setStatus(SitterStatus.APPROVED);
+        return mapToResponse(repo.save(profile));
+    }
+
+    // REJECT
+    public SitterProfileResponse reject(Long id, String reason) {
+        SitterProfile profile = repo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Sitter profile not found"));
+        if (profile.getStatus() != SitterStatus.WAITING_FOR_APPROVE) {
+            throw new IllegalArgumentException("Profile is not pending approval");
+        }
+        profile.setStatus(SitterStatus.REJECTED);
+        profile.setRejectReason(reason != null ? reason.trim() : null);
+        return mapToResponse(repo.save(profile));
+    }
+
     // REQUEST APPROVAL
     public SitterProfileResponse requestApproval(Long id) {
         SitterProfile profile = repo.findById(id)
@@ -235,12 +258,12 @@ public class SitterProfileService {
             List<String> petTypes,
             Integer rating,
             String experience,
+            String status,
             int page,
             int size,
             String sortBy,
             String direction
     ) {
-        // 🔥 กัน input พัง
         if (page < 0 || size <= 0) {
             throw new IllegalArgumentException("Invalid pagination");
         }
@@ -254,19 +277,32 @@ public class SitterProfileService {
         Specification<SitterProfile> spec = (root, queryObj, cb) -> {
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
 
-            // 🚫 ซ่อนข้อมูลที่ไม่มีชื่อบริการ (TradeName)
-            predicates.add(cb.isNotNull(root.get("tradeName")));
-            predicates.add(cb.notEqual(root.get("tradeName"), ""));
+            // แสดงเฉพาะ sitter ที่เคยกด Request Approval แล้ว (status ไม่ใช่ null)
+            // ครอบคลุม: WAITING_FOR_APPROVE, APPROVED, REJECTED
+            predicates.add(cb.isNotNull(root.get("status")));
 
-            // เฉพาะที่ APPROVED เท่านั้น (ถ้าต้องการ Filter อัตโนมัติในอนาคต)
-            // predicates.add(cb.equal(root.get("isApproved"), true));
+            // Filter by specific status (WAITING_FOR_APPROVE / APPROVED / REJECTED)
+            if (status != null && !status.isBlank()) {
+                try {
+                    SitterStatus sitterStatus = SitterStatus.valueOf(status);
+                    predicates.add(cb.equal(root.get("status"), sitterStatus));
+                } catch (IllegalArgumentException ignored) {
+                    // invalid status value — ignore filter
+                }
+            }
 
             if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(root.get("pricePerHour"), minPrice));
             if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(root.get("pricePerHour"), maxPrice));
 
-            // ค้นหาตามชื่อ (TradeName)
+            // ค้นหาจาก fullName (UserProfile), tradeName หรือ email ของ user
             if (query != null && !query.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("tradeName")), "%" + query.toLowerCase() + "%"));
+                String like = "%" + query.toLowerCase() + "%";
+                jakarta.persistence.criteria.Join<Object, Object> userJoin =
+                        root.join("user", jakarta.persistence.criteria.JoinType.LEFT);
+                predicates.add(cb.or(
+                        cb.like(cb.lower(cb.coalesce(root.get("tradeName"), "")), like),
+                        cb.like(cb.lower(userJoin.get("email")), like)
+                ));
             }
 
             // ค้นหาตามชนิดสัตว์เลี้ยง (petTypes ใน DB เป็น string เช่น "Dog, Cat")
@@ -278,12 +314,10 @@ public class SitterProfileService {
                 predicates.add(cb.or(petPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
             }
 
-            // ค้นหาตาม Rating (ratingAvg >= ค่าที่ส่งมา)
             if (rating != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("ratingAvg"), rating.doubleValue()));
             }
 
-            // ค้นหาตาม Experience (ปี) — จะกรองก็ต่อเมื่อไม่ใช่ "All Experience" (ค่าว่าง)
             if (experience != null && !experience.isBlank()) {
                 if (experience.equals("0-2 Years")) {
                     predicates.add(cb.between(root.get("experience"), 0, 2));
@@ -297,9 +331,7 @@ public class SitterProfileService {
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
 
-        Page<SitterProfile> result = repo.findAll(spec, pageable);
-
-        return result.map(this::mapToResponse);
+        return repo.findAll(spec, pageable).map(this::mapToResponse);
     }
 
     public SitterProfileResponse getById(Long id) {
