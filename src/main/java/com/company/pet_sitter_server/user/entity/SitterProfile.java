@@ -22,7 +22,7 @@ public class SitterProfile {
     private User user;
 
     private String bio;
-    private Double pricePerHour;
+    private Double pricePerHour = 200.0;
     /** จำนวนปีประสบการณ์ — map กับ INTEGER ใน DB */
     private Integer experience;
     private String tradeName;

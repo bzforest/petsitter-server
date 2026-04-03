@@ -70,19 +70,6 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.getBookingsBySitter(sitterId));
     }
 
-    // PATCH /api/bookings/{id}/confirm-cash — ยืนยัน Cash payment → PAID
-    @PatchMapping("/{id}/confirm-cash")
-    public ResponseEntity<BookingResponse> confirmCash(
-            @PathVariable Long id,
-            HttpServletRequest httpServletRequest) {
-
-        String role = jwtUtil.extractRole(
-                httpServletRequest.getHeader("Authorization").substring(7));
-        if (!role.equals("SITTER")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        return ResponseEntity.ok(bookingService.confirmCash(id));
-    }
 
     // PATCH /api/bookings/{id}/cancel — ยกเลิก booking
     @PatchMapping("/{id}/cancel")
@@ -98,7 +85,8 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.cancelBooking(id));
     }
 
-    // PATCH /api/bookings/{id}/confirm — Sitter ยอมรับงาน (PENDING/PAID -> CONFIRMED)
+    // PATCH /api/bookings/{id}/confirm — Sitter ยอมรับงาน (PENDING/PAID ->
+    // CONFIRMED)
     @PatchMapping("/{id}/confirm")
     public ResponseEntity<BookingResponse> confirmBooking(
             @PathVariable Long id,
@@ -128,5 +116,11 @@ public class BookingController {
 
         Long sitterId = extractUserIdFromToken(httpRequest);
         return ResponseEntity.ok(bookingService.completeBooking(id, sitterId));
+    }
+
+    // PATCH /api/bookings/{id}/verify-payment — ตรวจสอบผลการชำระเงินกับ Stripe
+    @PatchMapping("/{id}/verify-payment")
+    public ResponseEntity<BookingResponse> verifyPayment(@PathVariable Long id) {
+        return ResponseEntity.ok(bookingService.verifyPayment(id));
     }
 }

@@ -9,7 +9,7 @@ import com.company.pet_sitter_server.enums.BookingStatus;
 import com.company.pet_sitter_server.pets.repository.PetRepository;
 import com.company.pet_sitter_server.user.entity.SitterProfile;
 import com.company.pet_sitter_server.user.repository.SitterProfileRepository;
-import com.company.pet_sitter_server.user.repository.UserProfileRepository;
+import com.company.pet_sitter_server.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final SitterProfileRepository sitterProfileRepository;
     private final PetRepository petRepository;
-    private final UserProfileRepository userProfileRepository;
+    private final UserRepository userRepository;
     private final StripeService stripeService;
     private final ZoneId BANGKOK_ZONE = ZoneId.of("Asia/Bangkok");
 
@@ -58,9 +58,13 @@ public class BookingService {
 
         long minutes = Duration.between(startBangkok, endBangkok).toMinutes();
         double hours = minutes / 60.0;
-        
+
         // 200 THB/hr for 1st pet, 100 THB/hr for extra pets
-        double pricePerHour = sitterProfile.getPricePerHour(); // Assume 200
+        Double pricePerHour = sitterProfile.getPricePerHour();
+        if (pricePerHour == null || pricePerHour <= 0) {
+            pricePerHour = 200.0;
+        }
+
         int numPets = request.getPetIds().size();
         double totalPrice = (pricePerHour * hours) + (100 * hours * (numPets - 1));
 
@@ -77,12 +81,16 @@ public class BookingService {
         booking.setEndTime(request.getEndTime());
         booking.setTotalPrice(totalPrice);
         booking.setNoteToSitter(request.getNoteToSitter());
+        
+        // Normalize input string
+        String method = (request.getPaymentMethod() != null) ? request.getPaymentMethod().trim() : "";
+        booking.setPaymentMethod(method.toUpperCase());
+        // All bookings start as PENDING (Card will wait for Webhook to become PAID)
         booking.setStatus(BookingStatus.PENDING);
-        booking.setPaymentMethod(request.getPaymentMethod());
 
         // สำหรับ CREDIT_CARD: สร้าง PaymentIntent ที่ Stripe
         String clientSecret = null;
-        if ("CREDIT_CARD".equals(request.getPaymentMethod())) {
+        if ("CREDIT_CARD".equalsIgnoreCase(method)) {
             try {
                 StripePaymentResponse stripeRes = stripeService.createPaymentIntent(totalPrice);
                 booking.setStripePaymentIntentId(stripeRes.getPaymentIntentId()); // เก็บ "pi_xxx" ใน DB
@@ -114,7 +122,7 @@ public class BookingService {
                 .map(b -> toResponse(b, null))
                 .collect(Collectors.toList());
     }
-    
+
     // ============================================================
     // GET /api/bookings/sitter/me — ดึงรายการจองที่ Sitter คนนี้ถูกจอง
     // ============================================================
@@ -123,25 +131,6 @@ public class BookingService {
                 .stream()
                 .map(b -> toResponse(b, null))
                 .collect(Collectors.toList());
-    }
-
-    // ============================================================
-    // PATCH /api/bookings/{id}/confirm-cash — ยืนยัน Cash payment
-    // ============================================================
-    @Transactional
-    public BookingResponse confirmCash(Long id) {
-        Bookings booking = bookingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
-
-        if (!BookingStatus.PENDING.equals(booking.getStatus())) {
-            throw new IllegalArgumentException("Booking is not in PENDING status");
-        }
-        if (!"CASH".equals(booking.getPaymentMethod())) {
-            throw new IllegalArgumentException("This booking is not a cash payment");
-        }
-
-        booking.setStatus(BookingStatus.PAID);
-        return toResponse(bookingRepository.save(booking), null);
     }
 
     // ============================================================
@@ -175,8 +164,14 @@ public class BookingService {
             throw new SecurityException("You are not authorized to confirm this booking");
         }
 
-        if (BookingStatus.CANCELLED.equals(booking.getStatus()) || BookingStatus.COMPLETED.equals(booking.getStatus())) {
-            throw new IllegalArgumentException("Cannot confirm a cancelled or completed booking");
+        // Sitter confirms job
+        // Card: must be PAID (via Webhook)
+        // Cash: starts as PENDING
+        boolean isCardPaid = "CREDIT_CARD".equalsIgnoreCase(booking.getPaymentMethod()) && BookingStatus.PAID.equals(booking.getStatus());
+        boolean isCashPending = "CASH".equalsIgnoreCase(booking.getPaymentMethod()) && BookingStatus.PENDING.equals(booking.getStatus());
+
+        if (!isCardPaid && !isCashPending) {
+            throw new IllegalArgumentException("Cannot confirm: Job is either unpaid (Card) or in an invalid state.");
         }
 
         booking.setStatus(BookingStatus.CONFIRMED);
@@ -195,12 +190,47 @@ public class BookingService {
             throw new SecurityException("You are not authorized to complete this booking");
         }
 
-        if (BookingStatus.CANCELLED.equals(booking.getStatus())) {
-            throw new IllegalArgumentException("Cannot complete a cancelled booking");
+        if (!BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            throw new IllegalArgumentException("Only confirmed bookings can be completed.");
         }
 
         booking.setStatus(BookingStatus.COMPLETED);
         return toResponse(bookingRepository.save(booking), null);
+    }
+
+    // ============================================================
+    // PATCH /api/bookings/{id}/verify-payment — ตรวจสอบผลการชำระเงินกับ Stripe
+    // ============================================================
+    @Transactional
+    public BookingResponse verifyPayment(Long id) {
+        Bookings booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
+
+        if (!"CREDIT_CARD".equalsIgnoreCase(booking.getPaymentMethod())) {
+            throw new IllegalArgumentException("This booking is not a credit card payment.");
+        }
+
+        // If already paid, just return it
+        if (BookingStatus.PAID.equals(booking.getStatus()) || BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            return toResponse(booking, null);
+        }
+
+        String piId = booking.getStripePaymentIntentId();
+        if (piId == null || piId.isEmpty()) {
+            throw new RuntimeException("No Stripe Payment Intent ID found for this booking.");
+        }
+
+        try {
+            com.stripe.model.PaymentIntent intent = stripeService.retrievePaymentIntent(piId);
+            if ("succeeded".equalsIgnoreCase(intent.getStatus())) {
+                booking.setStatus(BookingStatus.PAID);
+                return toResponse(bookingRepository.save(booking), null);
+            } else {
+                throw new RuntimeException("Payment Status at Stripe is: " + intent.getStatus());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to verify with Stripe: " + e.getMessage());
+        }
     }
 
     // ============================================================
@@ -216,10 +246,15 @@ public class BookingService {
         response.setPaymentIntentId(booking.getStripePaymentIntentId());
         response.setClientSecret(clientSecret);
 
-        String sitterName = userProfileRepository
+        // Find Sitter Name (Priority: SitterProfile.tradeName -> User.email)
+        String sitterName = sitterProfileRepository
                 .findByUserId(booking.getSitterId())
-                .map(p -> p.getFullName())
-                .orElse("Unknown");
+                .map(sp -> sp.getTradeName())
+                .filter(name -> name != null && !name.isEmpty())
+                .orElseGet(() -> userRepository
+                        .findById(booking.getSitterId())
+                        .map(u -> u.getEmail())
+                        .orElse("Unknown Sitter"));
 
         List<String> petNames = petRepository
                 .findAllById(booking.getPetIds())
