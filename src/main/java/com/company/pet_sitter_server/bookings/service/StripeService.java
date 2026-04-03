@@ -32,4 +32,8 @@ public class StripeService {
         response.setClientSecret(intent.getClientSecret()); // ← ส่งให้ Frontend
         return response;
     }
+
+    public PaymentIntent retrievePaymentIntent(String paymentIntentId) throws StripeException {
+        return PaymentIntent.retrieve(paymentIntentId);
+    }
 }
