@@ -46,6 +46,7 @@ public class SitterProfile {
     private String services;
     private Double latitude;
     private Double longitude;
+    
 
     @Convert(converter = StringListConverter.class)
     @Column(columnDefinition = "text")
