@@ -9,7 +9,7 @@ import com.company.pet_sitter_server.enums.BookingStatus;
 import com.company.pet_sitter_server.pets.repository.PetRepository;
 import com.company.pet_sitter_server.user.entity.SitterProfile;
 import com.company.pet_sitter_server.user.repository.SitterProfileRepository;
-import com.company.pet_sitter_server.user.repository.UserProfileRepository;
+import com.company.pet_sitter_server.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final SitterProfileRepository sitterProfileRepository;
     private final PetRepository petRepository;
-    private final UserProfileRepository userProfileRepository;
+    private final UserRepository userRepository;
     private final StripeService stripeService;
     private final ZoneId BANGKOK_ZONE = ZoneId.of("Asia/Bangkok");
 
@@ -60,7 +60,11 @@ public class BookingService {
         double hours = minutes / 60.0;
         
         // 200 THB/hr for 1st pet, 100 THB/hr for extra pets
-        double pricePerHour = sitterProfile.getPricePerHour(); // Assume 200
+        Double pricePerHour = sitterProfile.getPricePerHour();
+        if (pricePerHour == null || pricePerHour <= 0) {
+            pricePerHour = 200.0;
+        }
+
         int numPets = request.getPetIds().size();
         double totalPrice = (pricePerHour * hours) + (100 * hours * (numPets - 1));
 
@@ -216,10 +220,15 @@ public class BookingService {
         response.setPaymentIntentId(booking.getStripePaymentIntentId());
         response.setClientSecret(clientSecret);
 
-        String sitterName = userProfileRepository
+        // Find Sitter Name (Priority: SitterProfile.tradeName -> User.email)
+        String sitterName = sitterProfileRepository
                 .findByUserId(booking.getSitterId())
-                .map(p -> p.getFullName())
-                .orElse("Unknown");
+                .map(sp -> sp.getTradeName())
+                .filter(name -> name != null && !name.isEmpty())
+                .orElseGet(() -> userRepository
+                        .findById(booking.getSitterId())
+                        .map(u -> u.getEmail())
+                        .orElse("Unknown Sitter"));
 
         List<String> petNames = petRepository
                 .findAllById(booking.getPetIds())
