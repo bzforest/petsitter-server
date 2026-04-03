@@ -2,6 +2,7 @@ package com.company.pet_sitter_server.bookings.dto;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import lombok.Data;
 
@@ -10,7 +11,8 @@ public class BookingResponse {
     private Long id;
     private Long userId;
     private String sitterName;
-    private String petName;
+    private List<String> petNames;
+    private List<Long> petIds;
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalTime startTime;

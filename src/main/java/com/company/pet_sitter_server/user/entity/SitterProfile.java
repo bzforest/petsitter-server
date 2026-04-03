@@ -52,6 +52,9 @@ public class SitterProfile {
     @ManyToOne
     @JoinColumn(name = "address_id")
     private Address address;
+    
+    @Column(name = "services_description")
+    private String servicesDescription;
 
     public SitterProfile() {}
 
@@ -67,6 +70,7 @@ public class SitterProfile {
     public String getIdNumber() { return idNumber; }
     public LocalDate getDateOfBirth() { return dateOfBirth; }
     public SitterStatus getStatus() { return status; }
+    public String getServicesDescription() { return servicesDescription; }
     public Boolean getIsApproved() { return isApproved; }
     public Double getRatingAvg() { return ratingAvg; }
     public String getRejectReason() { return rejectReason; }
@@ -80,6 +84,7 @@ public class SitterProfile {
     public void setBio(String bio) { this.bio = bio; }
     public void setPricePerHour(Double pricePerHour) { this.pricePerHour = pricePerHour; }
     public void setExperience(Integer experience) { this.experience = experience; }
+    public void setServicesDescription(String servicesDescription) { this.servicesDescription = servicesDescription; }
     public void setTradeName(String tradeName) { this.tradeName = tradeName; }
     public void setPetTypes(String petTypes) { this.petTypes = petTypes; }
     public void setPlaceDescription(String placeDescription) { this.placeDescription = placeDescription; }

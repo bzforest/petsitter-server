@@ -63,4 +63,10 @@ public class SitterProfileController {
                 service.getAll(minPrice, maxPrice, page, size, sortBy, direction)
         );
     }
+
+    // GET By ID
+    @GetMapping("/{id}")
+    public ResponseEntity<SitterProfileResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getById(id));
+    }
 }

@@ -6,14 +6,19 @@ import java.time.OffsetDateTime;
 
 import com.company.pet_sitter_server.enums.BookingStatus;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import java.util.List;
+import java.util.ArrayList;
 import lombok.Data;
 
 @Entity
@@ -27,8 +32,10 @@ public class Bookings {
     private Long userId; // ID ของเจ้าของสัตว์เลี้ยง
     private Long sitterId; // ID ของพี่เลี้ยง
     
+    @ElementCollection
+    @CollectionTable(name = "booking_pets", joinColumns = @JoinColumn(name = "booking_id"))
     @Column(name = "pet_id")
-    private Long petId; 
+    private List<Long> petIds = new ArrayList<>();
 
 
 

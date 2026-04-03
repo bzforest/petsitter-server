@@ -19,4 +19,5 @@ public class SitterProfileRequest {
     public LocalDate dateOfBirth;
     public Long addressId;
     public List<String> gallery;
+    public String servicesDescription;
 }
