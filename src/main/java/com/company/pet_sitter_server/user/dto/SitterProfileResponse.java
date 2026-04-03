@@ -30,6 +30,10 @@ public class SitterProfileResponse {
     public Double longitude;
     public List<String> gallery;
 
+    // Additional fields for Search UI
+    public String fullName;
+    public String profileImage;
+
     // flat address fields จาก Address record
     public Long addressId;
     public String addressLine;

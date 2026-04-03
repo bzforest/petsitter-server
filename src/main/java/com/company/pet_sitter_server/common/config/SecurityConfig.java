@@ -45,6 +45,7 @@ public class SecurityConfig {
                         // ✅ Public endpoints — ไม่ต้อง login
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/sitter-profiles/**").permitAll()
                         .requestMatchers("/api/webhooks/**").permitAll()
 
                         // 🔐 ADMIN only

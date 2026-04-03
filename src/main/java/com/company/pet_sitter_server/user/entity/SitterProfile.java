@@ -46,6 +46,7 @@ public class SitterProfile {
     private String services;
     private Double latitude;
     private Double longitude;
+    private String profileImage;
 
     @Convert(converter = StringListConverter.class)
     @Column(columnDefinition = "text")
@@ -80,6 +81,7 @@ public class SitterProfile {
     public String getServices() { return services; }
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
+    public String getProfileImage() { return profileImage; }
     public List<String> getGallery() { return gallery; }
     public Address getAddress() { return address; }
 
@@ -104,6 +106,7 @@ public class SitterProfile {
     public void setServices(String services) { this.services = services; }
     public void setLatitude(Double latitude) { this.latitude = latitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
     public void setGallery(List<String> gallery) { this.gallery = gallery; }
     public void setAddress(Address address) { this.address = address; }
 }

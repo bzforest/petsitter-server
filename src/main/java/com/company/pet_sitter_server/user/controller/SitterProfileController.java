@@ -54,13 +54,17 @@ public class SitterProfileController {
     public ResponseEntity<Page<SitterProfileResponse>> getAll(
             @RequestParam(required = false) Double minPrice,
             @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) java.util.List<String> petTypes,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(required = false) String experience,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
-            @RequestParam(defaultValue = "pricePerHour") String sortBy,
-            @RequestParam(defaultValue = "asc") String direction
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction
     ) {
         return ResponseEntity.ok(
-                service.getAll(minPrice, maxPrice, page, size, sortBy, direction)
+                service.getAll(minPrice, maxPrice, query, petTypes, rating, experience, page, size, sortBy, direction)
         );
     }
 

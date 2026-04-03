@@ -14,8 +14,8 @@ import com.company.pet_sitter_server.user.entity.UserProfile;
 import com.company.pet_sitter_server.user.repository.SitterProfileRepository;
 import com.company.pet_sitter_server.user.repository.UserProfileRepository;
 import com.company.pet_sitter_server.user.repository.UserRepository;
-
 import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -231,12 +231,15 @@ public class SitterProfileService {
     public Page<SitterProfileResponse> getAll(
             Double minPrice,
             Double maxPrice,
+            String query,
+            List<String> petTypes,
+            Integer rating,
+            String experience,
             int page,
             int size,
             String sortBy,
             String direction
     ) {
-
         // 🔥 กัน input พัง
         if (page < 0 || size <= 0) {
             throw new IllegalArgumentException("Invalid pagination");
@@ -248,20 +251,53 @@ public class SitterProfileService {
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<SitterProfile> result;
+        Specification<SitterProfile> spec = (root, queryObj, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
 
-        if (minPrice != null && maxPrice != null) {
+            // 🚫 ซ่อนข้อมูลที่ไม่มีชื่อบริการ (TradeName)
+            predicates.add(cb.isNotNull(root.get("tradeName")));
+            predicates.add(cb.notEqual(root.get("tradeName"), ""));
 
-            if (minPrice > maxPrice) {
-                throw new IllegalArgumentException("Invalid price range");
+            // เฉพาะที่ APPROVED เท่านั้น (ถ้าต้องการ Filter อัตโนมัติในอนาคต)
+            // predicates.add(cb.equal(root.get("isApproved"), true));
+
+            if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(root.get("pricePerHour"), minPrice));
+            if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(root.get("pricePerHour"), maxPrice));
+
+            // ค้นหาตามชื่อ (TradeName)
+            if (query != null && !query.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("tradeName")), "%" + query.toLowerCase() + "%"));
             }
 
-            List<SitterProfile> list = repo.findByPricePerHourBetween(minPrice, maxPrice);
-            result = new PageImpl<>(list, pageable, list.size());
+            // ค้นหาตามชนิดสัตว์เลี้ยง (petTypes ใน DB เป็น string เช่น "Dog, Cat")
+            if (petTypes != null && !petTypes.isEmpty()) {
+                var petPredicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+                for (String type : petTypes) {
+                    petPredicates.add(cb.like(cb.lower(root.get("petTypes")), "%" + type.toLowerCase() + "%"));
+                }
+                predicates.add(cb.or(petPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
+            }
 
-        } else {
-            result = repo.findAll(pageable);
-        }
+            // ค้นหาตาม Rating (ratingAvg >= ค่าที่ส่งมา)
+            if (rating != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("ratingAvg"), rating.doubleValue()));
+            }
+
+            // ค้นหาตาม Experience (ปี) — จะกรองก็ต่อเมื่อไม่ใช่ "All Experience" (ค่าว่าง)
+            if (experience != null && !experience.isBlank()) {
+                if (experience.equals("0-2 Years")) {
+                    predicates.add(cb.between(root.get("experience"), 0, 2));
+                } else if (experience.equals("3-5 Years")) {
+                    predicates.add(cb.between(root.get("experience"), 3, 5));
+                } else if (experience.equals("5+ Years")) {
+                    predicates.add(cb.greaterThanOrEqualTo(root.get("experience"), 5));
+                }
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        Page<SitterProfile> result = repo.findAll(spec, pageable);
 
         return result.map(this::mapToResponse);
     }
@@ -303,6 +339,14 @@ public class SitterProfileService {
         res.latitude = profile.getLatitude();
         res.longitude = profile.getLongitude();
         res.gallery = profile.getGallery();
+
+        // Fetch User Profile for fullName and profileImage
+        if (profile.getUser() != null) {
+            userProfileRepo.findByUserId(profile.getUser().getId()).ifPresent(up -> {
+                res.fullName = up.getFullName();
+                res.profileImage = up.getProfileImage();
+            });
+        }
 
         if (profile.getAddress() != null) {
             Address addr = profile.getAddress();
