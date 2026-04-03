@@ -18,6 +18,7 @@ public class SitterProfileResponse {
     public String placeDescription;
     public String phone;
     public String idNumber;
+    public String servicesDescription;
     public LocalDate dateOfBirth;
     public SitterStatus status;
     public Boolean isApproved;

@@ -60,6 +60,7 @@ public class SitterProfileService {
         profile.setBio(req.bio);
         profile.setPricePerHour(req.pricePerHour);
         profile.setExperience(req.experience);
+        profile.setServicesDescription(req.servicesDescription);
         profile.setTradeName(req.tradeName);
         profile.setPetTypes(req.petTypes);
         profile.setPlaceDescription(req.placeDescription);
@@ -202,6 +203,12 @@ public class SitterProfileService {
         return result.map(this::mapToResponse);
     }
 
+    public SitterProfileResponse getById(Long id) {
+        SitterProfile profile = repo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Sitter Profile not found with id: " + id));
+        return mapToResponse(profile);
+    }
+
     private SitterProfileResponse mapToResponse(SitterProfile profile) {
         SitterProfileResponse res = new SitterProfileResponse();
         res.id = profile.getId();
@@ -214,6 +221,7 @@ public class SitterProfileService {
         res.bio = profile.getBio();
         res.pricePerHour = profile.getPricePerHour();
         res.experience = profile.getExperience();
+        res.servicesDescription = profile.getServicesDescription();
         res.tradeName = profile.getTradeName();
         res.petTypes = profile.getPetTypes();
         res.services = profile.getServices();

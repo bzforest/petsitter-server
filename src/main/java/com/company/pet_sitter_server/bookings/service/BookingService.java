@@ -58,14 +58,17 @@ public class BookingService {
 
         long minutes = Duration.between(startBangkok, endBangkok).toMinutes();
         double hours = minutes / 60.0;
-        double pricePerHour = sitterProfile.getPricePerHour();
-        double totalPrice = pricePerHour * hours;
+        
+        // 200 THB/hr for 1st pet, 100 THB/hr for extra pets
+        double pricePerHour = sitterProfile.getPricePerHour(); // Assume 200
+        int numPets = request.getPetIds().size();
+        double totalPrice = (pricePerHour * hours) + (100 * hours * (numPets - 1));
 
         // แมพข้อมูลลง Entity
         Bookings booking = new Bookings();
         booking.setUserId(request.getUserId());
         booking.setSitterId(sitterProfile.getUser().getId());
-        booking.setPetId(request.getPetId());
+        booking.setPetIds(request.getPetIds());
 
         booking.setPricePerHour(pricePerHour);
         booking.setStartDate(request.getStartDate());
@@ -161,6 +164,46 @@ public class BookingService {
     }
 
     // ============================================================
+    // PATCH /api/bookings/{id}/confirm — Sitter ยอมรับงาน (CONFIRMED)
+    // ============================================================
+    @Transactional
+    public BookingResponse confirmBooking(Long id, Long sitterId) {
+        Bookings booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
+
+        if (!booking.getSitterId().equals(sitterId)) {
+            throw new SecurityException("You are not authorized to confirm this booking");
+        }
+
+        if (BookingStatus.CANCELLED.equals(booking.getStatus()) || BookingStatus.COMPLETED.equals(booking.getStatus())) {
+            throw new IllegalArgumentException("Cannot confirm a cancelled or completed booking");
+        }
+
+        booking.setStatus(BookingStatus.CONFIRMED);
+        return toResponse(bookingRepository.save(booking), null);
+    }
+
+    // ============================================================
+    // PATCH /api/bookings/{id}/complete — Sitter จบงาน (COMPLETED)
+    // ============================================================
+    @Transactional
+    public BookingResponse completeBooking(Long id, Long sitterId) {
+        Bookings booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
+
+        if (!booking.getSitterId().equals(sitterId)) {
+            throw new SecurityException("You are not authorized to complete this booking");
+        }
+
+        if (BookingStatus.CANCELLED.equals(booking.getStatus())) {
+            throw new IllegalArgumentException("Cannot complete a cancelled booking");
+        }
+
+        booking.setStatus(BookingStatus.COMPLETED);
+        return toResponse(bookingRepository.save(booking), null);
+    }
+
+    // ============================================================
     // Helper — แปลง Entity → BookingResponse DTO
     // ============================================================
     private BookingResponse toResponse(Bookings booking, String clientSecret) {
@@ -178,17 +221,19 @@ public class BookingService {
                 .map(p -> p.getFullName())
                 .orElse("Unknown");
 
-        String petName = petRepository
-                .findById(booking.getPetId())
+        List<String> petNames = petRepository
+                .findAllById(booking.getPetIds())
+                .stream()
                 .map(p -> p.getName())
-                .orElse("Unknown");
+                .collect(Collectors.toList());
 
         double totalHours = Duration.between(
                 booking.getStartTime().atDate(booking.getStartDate()),
                 booking.getEndTime().atDate(booking.getEndDate())).toMinutes() / 60.0;
 
         response.setSitterName(sitterName);
-        response.setPetName(petName);
+        response.setPetNames(petNames);
+        response.setPetIds(booking.getPetIds());
         response.setStartDate(booking.getStartDate());
         response.setEndDate(booking.getEndDate());
         response.setStartTime(booking.getStartTime());

@@ -97,4 +97,36 @@ public class BookingController {
         }
         return ResponseEntity.ok(bookingService.cancelBooking(id));
     }
+
+    // PATCH /api/bookings/{id}/confirm — Sitter ยอมรับงาน (PENDING/PAID -> CONFIRMED)
+    @PatchMapping("/{id}/confirm")
+    public ResponseEntity<BookingResponse> confirmBooking(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+
+        String role = jwtUtil.extractRole(
+                httpRequest.getHeader("Authorization").substring(7));
+        if (!"SITTER".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Long sitterId = extractUserIdFromToken(httpRequest);
+        return ResponseEntity.ok(bookingService.confirmBooking(id, sitterId));
+    }
+
+    // PATCH /api/bookings/{id}/complete — Sitter กดจบงาน -> COMPLETED
+    @PatchMapping("/{id}/complete")
+    public ResponseEntity<BookingResponse> completeBooking(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+
+        String role = jwtUtil.extractRole(
+                httpRequest.getHeader("Authorization").substring(7));
+        if (!"SITTER".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Long sitterId = extractUserIdFromToken(httpRequest);
+        return ResponseEntity.ok(bookingService.completeBooking(id, sitterId));
+    }
 }
