@@ -2,6 +2,7 @@ package com.company.pet_sitter_server.auth.service;
 
 import com.company.pet_sitter_server.auth.client.SupabaseAuthClient;
 import com.company.pet_sitter_server.auth.dto.AuthResponse;
+import com.company.pet_sitter_server.auth.dto.GoogleOAuthRequest;
 import com.company.pet_sitter_server.auth.dto.LoginRequest;
 import com.company.pet_sitter_server.auth.dto.RegisterRequest;
 import com.company.pet_sitter_server.common.security.JwtUtil;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class AuthService {
@@ -118,6 +120,77 @@ public class AuthService {
         }
 
         // ออก JWT ของเรา
+        String token = jwtUtil.generateToken(
+                user.getEmail(),
+                user.getRole().name(),
+                user.getId());
+
+        return new AuthResponse(token, user.getEmail(), user.getRole().name(), user.getId());
+    }
+
+    /**
+     * Google OAuth login flow:
+     * 1. รับ Supabase access_token จาก frontend (ได้มาหลัง Google OAuth callback)
+     * 2. เรียก Supabase GET /auth/v1/user เพื่อ verify token และดึง user info
+     * 3. ถ้า user ยังไม่มีใน DB → สร้างใหม่ (default role = USER)
+     * 4. ถ้ามีแล้ว → ตรวจสถานะ (ห้าม BANNED)
+     * 5. ออก JWT ของเรา
+     *
+     * ทำไมต้อง verify ที่ backend?
+     * เพราะถ้า frontend ส่ง token มาโดยไม่ verify → ใครก็ได้อาจสร้าง fake token
+     * การเรียก Supabase API ด้วย token นั้นเป็นการ verify ว่า token จริงและยังใช้งานได้
+     */
+    @Transactional
+    public AuthResponse googleLogin(GoogleOAuthRequest req) {
+
+        // verify token กับ Supabase — ถ้า token ไม่ถูกต้อง Supabase จะคืน 401
+        // และ RestClient จะโยน exception ทำให้ request นี้ fail ทันที
+        Map<String, Object> supabaseUser;
+        try {
+            supabaseUser = supabaseAuthClient.getUserByToken(req.getAccessToken());
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid or expired Google token");
+        }
+
+        // ดึง id และ email จาก Supabase user object
+        String supabaseId = (String) supabaseUser.get("id");
+        String email = (String) supabaseUser.get("email");
+
+        if (supabaseId == null || email == null) {
+            throw new RuntimeException("Failed to retrieve user info from Supabase");
+        }
+
+        // หา user ใน DB ของเรา — อาจมีจาก email/password register ก่อนหน้า
+        Optional<User> existingUser = userRepository.findByEmail(email);
+
+        User user;
+        if (existingUser.isPresent()) {
+            user = existingUser.get();
+
+            // ตรวจสถานะ — ถ้า BANNED ไม่ให้ login
+            if (user.getStatus() == UserStatus.BANNED) {
+                throw new IllegalArgumentException("Account is banned");
+            }
+
+            // อัปเดต supabaseId ในกรณีที่ user เคย register ด้วย email/password
+            // แล้วภายหลังมา login ด้วย Google ด้วย email เดียวกัน
+            if (user.getSupabaseId() == null) {
+                user.setSupabaseId(supabaseId);
+            }
+
+        } else {
+            // User ใหม่ที่ login ด้วย Google ครั้งแรก → สร้าง account อัตโนมัติ
+            // Default role = USER (สามารถเปลี่ยนในภายหลังได้)
+            user = new User();
+            user.setSupabaseId(supabaseId);
+            user.setEmail(email);
+            user.setRole(Role.USER);
+            user.setStatus(UserStatus.ACTIVE);
+            user.setCreatedAt(LocalDateTime.now());
+            user = userRepository.save(user);
+        }
+
+        // ออก JWT ของเรา (เหมือนกับ login ปกติ)
         String token = jwtUtil.generateToken(
                 user.getEmail(),
                 user.getRole().name(),

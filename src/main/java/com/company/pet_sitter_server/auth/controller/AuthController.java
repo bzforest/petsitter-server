@@ -1,6 +1,7 @@
 package com.company.pet_sitter_server.auth.controller;
 
 import com.company.pet_sitter_server.auth.dto.AuthResponse;
+import com.company.pet_sitter_server.auth.dto.GoogleOAuthRequest;
 import com.company.pet_sitter_server.auth.dto.LoginRequest;
 import com.company.pet_sitter_server.auth.dto.RegisterRequest;
 import com.company.pet_sitter_server.auth.service.AuthService;
@@ -41,6 +42,22 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * POST /api/auth/google
+     * Body: { "accessToken": "<supabase_access_token_from_google_oauth>" }
+     * Response: { "token": "...", "email": "...", "role": "USER", "userId": 1 }
+     *
+     * Flow:
+     * 1. Frontend ทำ Google OAuth ผ่าน Supabase → ได้ Supabase session
+     * 2. Frontend ส่ง session.access_token มาที่ endpoint นี้
+     * 3. Backend verify กับ Supabase และออก JWT ของเรา
+     */
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleOAuthRequest request) {
+        AuthResponse response = authService.googleLogin(request);
         return ResponseEntity.ok(response);
     }
 }

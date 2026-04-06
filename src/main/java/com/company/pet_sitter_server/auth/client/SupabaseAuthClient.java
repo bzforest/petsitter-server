@@ -73,4 +73,25 @@ public class SupabaseAuthClient {
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {});
     }
+
+    /**
+     * ตรวจสอบ Supabase access_token ที่ได้จาก Google OAuth
+     * GET /auth/v1/user
+     * Authorization: Bearer <supabase_access_token>
+     *
+     * ถ้า token ถูกต้อง Supabase จะคืน user object:
+     *   - id: UUID ของ user ใน Supabase
+     *   - email: email ของ user (จาก Google account)
+     *   - app_metadata.provider: "google"
+     *
+     * ถ้า token ไม่ถูกต้อง Supabase จะคืน 401 → RestClient จะโยน exception
+     */
+    public Map<String, Object> getUserByToken(String accessToken) {
+        return restClient.get()
+                .uri("/auth/v1/user")
+                .header("apikey", supabaseApiKey)
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+    }
 }
