@@ -16,7 +16,6 @@ public class SitterProfileResponse {
     public Integer experience;
     public String tradeName;
     public String petTypes;
-    public String services;
     public String placeDescription;
     public String phone;
     public String idNumber;

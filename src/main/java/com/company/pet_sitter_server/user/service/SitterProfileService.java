@@ -154,7 +154,7 @@ public class SitterProfileService {
         }
         if (req.tradeName != null) profile.setTradeName(req.tradeName);
         if (req.petTypes != null) profile.setPetTypes(req.petTypes);
-        if (req.services != null) profile.setServices(req.services);
+        if (req.servicesDescription != null) profile.setServicesDescription(req.servicesDescription);
         if (req.placeDescription != null) profile.setPlaceDescription(req.placeDescription);
         if (req.idNumber != null) profile.setIdNumber(req.idNumber);
         if (req.dateOfBirth != null) profile.setDateOfBirth(req.dateOfBirth);
@@ -359,7 +359,6 @@ public class SitterProfileService {
         res.servicesDescription = profile.getServicesDescription();
         res.tradeName = profile.getTradeName();
         res.petTypes = profile.getPetTypes();
-        res.services = profile.getServices();
         res.placeDescription = profile.getPlaceDescription();
         res.phone = profile.getPhone();
         res.idNumber = profile.getIdNumber();

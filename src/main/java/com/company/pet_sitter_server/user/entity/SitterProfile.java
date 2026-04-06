@@ -21,12 +21,14 @@ public class SitterProfile {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(columnDefinition = "text")
     private String bio;
     private Double pricePerHour = 200.0;
     /** จำนวนปีประสบการณ์ — map กับ INTEGER ใน DB */
     private Integer experience;
     private String tradeName;
     private String petTypes;
+    @Column(columnDefinition = "text")
     private String placeDescription;
     private String phone;
     private String idNumber;
@@ -43,7 +45,6 @@ public class SitterProfile {
     private String rejectReason;
     /** Public URL of profile photo (e.g. Supabase) */
     private String profileImage;
-    private String services;
     private Double latitude;
     private Double longitude;
     
@@ -56,7 +57,7 @@ public class SitterProfile {
     @JoinColumn(name = "address_id")
     private Address address;
     
-    @Column(name = "services_description")
+    @Column(name = "services_description", columnDefinition = "text")
     private String servicesDescription;
 
     public SitterProfile() {}
@@ -78,7 +79,6 @@ public class SitterProfile {
     public Double getRatingAvg() { return ratingAvg; }
     public String getRejectReason() { return rejectReason; }
     public String getProfileImage() { return profileImage; }
-    public String getServices() { return services; }
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
     public List<String> getGallery() { return gallery; }
@@ -102,7 +102,6 @@ public class SitterProfile {
     public void setRatingAvg(Double ratingAvg) { this.ratingAvg = ratingAvg; }
     public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
     public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
-    public void setServices(String services) { this.services = services; }
     public void setLatitude(Double latitude) { this.latitude = latitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
     public void setGallery(List<String> gallery) { this.gallery = gallery; }
