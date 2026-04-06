@@ -49,15 +49,20 @@ public class BookingController {
 
     // GET /api/bookings/user/me — ดึง booking history ของ user
     @GetMapping("/user/me")
-    public ResponseEntity<List<BookingResponse>> getBookingsByUser(
+    public ResponseEntity<org.springframework.data.domain.Page<BookingResponse>> getBookingsByUser(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "4") int size,
             HttpServletRequest httpRequest) {
         Long userId = extractUserIdFromToken(httpRequest);
-        return ResponseEntity.ok(bookingService.getBookingsByUser(userId));
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(bookingService.getBookingsByUser(userId, pageable));
     }
 
     // GET /api/bookings/sitter/me — ดึงรายการจองที่ Sitter คนนี้ถูกจอง
     @GetMapping("/sitter/me")
-    public ResponseEntity<List<BookingResponse>> getBookingsBySitter(
+    public ResponseEntity<org.springframework.data.domain.Page<BookingResponse>> getBookingsBySitter(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "4") int size,
             HttpServletRequest httpRequest) {
 
         String role = jwtUtil.extractRole(
@@ -67,7 +72,8 @@ public class BookingController {
         }
 
         Long sitterId = extractUserIdFromToken(httpRequest);
-        return ResponseEntity.ok(bookingService.getBookingsBySitter(sitterId));
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(bookingService.getBookingsBySitter(sitterId, pageable));
     }
 
 
@@ -122,5 +128,23 @@ public class BookingController {
     @PatchMapping("/{id}/verify-payment")
     public ResponseEntity<BookingResponse> verifyPayment(@PathVariable Long id) {
         return ResponseEntity.ok(bookingService.verifyPayment(id));
+    }
+
+    // PATCH /api/bookings/{id}/datetime — อัปเดตวันเวลาจอง
+    @PatchMapping("/{id}/datetime")
+    public ResponseEntity<BookingResponse> updateBookingDateTime(
+            @PathVariable Long id,
+            @RequestBody BookingRequest request,
+            HttpServletRequest httpRequest) {
+
+        Long userId = extractUserIdFromToken(httpRequest);
+        
+        // เช็คก่อนว่าเป็นเจ้าของ bookingจริงไหม
+        BookingResponse existing = bookingService.getBookingById(id);
+        if (!existing.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(bookingService.updateBookingDateTime(id, request));
     }
 }

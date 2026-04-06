@@ -14,8 +14,8 @@ public interface BookingRepository extends JpaRepository<Bookings, Long> {
     Optional<Bookings> findByStripePaymentIntentId(String stripePaymentIntentId);
 
     // booking history ของ user
-    List<Bookings> findByUserIdOrderByCreatedAtDesc(Long userId);
+    org.springframework.data.domain.Page<Bookings> findByUserIdOrderByCreatedAtDesc(Long userId, org.springframework.data.domain.Pageable pageable);
 
     // booking history ของ sitter
-    List<Bookings> findBySitterIdOrderByCreatedAtDesc(Long sitterId);
+    org.springframework.data.domain.Page<Bookings> findBySitterIdOrderByCreatedAtDesc(Long sitterId, org.springframework.data.domain.Pageable pageable);
 }
