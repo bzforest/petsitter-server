@@ -2,22 +2,34 @@ package com.company.pet_sitter_server.user.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
 @Table(name = "user_profiles")
+
 public class UserProfile {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonProperty("full_name")
     private String fullName;
+
     private String phone;
+
     private String address;
+
+    @JsonProperty("profile_image")
     private String profileImage;
+
     private Double latitude;
     private Double longitude;
+
+    @JsonProperty("date_of_birth")
     private LocalDate dateOfBirth;
+
+    @JsonProperty("id_number")
     private String idNumber;
 
     @OneToOne

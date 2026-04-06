@@ -21,4 +21,30 @@ public class UserProfileController {
     public ResponseEntity<UserProfileResponse> create(@RequestBody UserProfileRequest req) {
         return ResponseEntity.ok(service.create(req));
     }
+
+    // ==========================================
+    // (Owner Profile)
+    // ==========================================
+
+    // 1. ดึงข้อมูลโปรไฟล์ของตัวเอง
+    @GetMapping("/me")
+    public ResponseEntity<com.company.pet_sitter_server.user.entity.UserProfile> getMyProfile() {
+        // ดึง Email ของคนที่ Login อยู่
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(service.getProfileByEmail(email));
+    }
+
+    // 2. อัปเดตข้อมูลโปรไฟล์
+    @PutMapping(value = "/me", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<com.company.pet_sitter_server.user.entity.UserProfile> updateMyProfile(
+            @RequestParam("full_name") String fullName,
+            @RequestParam("phone") String phone,
+            @RequestParam(value = "id_number", required = false) String idNumber,
+            @RequestParam(value = "date_of_birth", required = false) String dob,
+            @RequestParam(value = "image", required = false) org.springframework.web.multipart.MultipartFile image
+    ) {
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        return ResponseEntity.ok(service.updateMyProfile(email, fullName, phone, idNumber, dob, image));
+    }
 }
