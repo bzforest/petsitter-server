@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.web.multipart.MultipartFile;
+
 @RestController
 @RequestMapping("/api/pets")
 @RequiredArgsConstructor
@@ -29,15 +31,20 @@ public class PetController {
     }
 
     @PostMapping
-    public ResponseEntity<PetResponse> createPet(@RequestBody PetRequest request) {
-        Pet savedPet = petService.createPet(request);
+    public ResponseEntity<PetResponse> createPet(
+            @ModelAttribute PetRequest request, // เปลี่ยนจาก @RequestBody เป็น @ModelAttribute
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+        Pet savedPet = petService.createPet(request, image); // ส่ง image ไปที่ Service ด้วย
         PetResponse response = petService.convertToResponse(savedPet);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PetResponse> updatePet(@PathVariable Long id, @RequestBody PetRequest request) {
-        PetResponse response = petService.updatePet(id, request);
+    public ResponseEntity<PetResponse> updatePet(
+            @PathVariable Long id, 
+            @ModelAttribute PetRequest request, // เปลี่ยนตรงนี้ด้วย
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+        PetResponse response = petService.updatePet(id, request, image); // ส่ง image ไปที่ Service ด้วย
         return ResponseEntity.ok(response);
     }
 

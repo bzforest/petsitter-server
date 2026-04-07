@@ -10,8 +10,14 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.company.pet_sitter_server.user.service.OwnerStorageService;
+import org.springframework.web.multipart.MultipartFile;
+
 @Service
 public class PetService {
+    
+    @Autowired
+    private OwnerStorageService storageService;
 
     @Autowired
     private PetRepository petRepository;
@@ -33,7 +39,7 @@ public class PetService {
     }
 
     // สำหรับ Create ข้อมูล
-    public Pet createPet(PetRequest request) {
+    public Pet createPet(PetRequest request, MultipartFile image) {
         Pet pet = new Pet();
         pet.setName(request.getName());
         pet.setType(request.getType());
@@ -44,11 +50,18 @@ public class PetService {
         pet.setAboutPet(request.getAboutPet());
         pet.setImageUrl(request.getImageUrl());
         pet.setUserId(request.getUserId());
+
+        if (image != null && !image.isEmpty()) {
+            String imageUrl = storageService.uploadImage(image, "pet-images"); // เก็บในถังใหม่ชื่อ pet-images
+            pet.setImageUrl(imageUrl);
+        } else {
+            pet.setImageUrl(request.getImageUrl());
+        }
         return petRepository.save(pet);
     }
 
     // สำหรับ Update ข้อมูล
-    public PetResponse updatePet(Long id, PetRequest request) {
+    public PetResponse updatePet(Long id, PetRequest request,MultipartFile image) {
         // หา Pet เดิมจาก DB ถ้าไม่เจอให้โยน Error (หรือจัดการตามความเหมาะสม)
         Pet existingPet = petRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pet not found with id: " + id));
@@ -63,6 +76,13 @@ public class PetService {
         existingPet.setAboutPet(request.getAboutPet());
         existingPet.setImageUrl(request.getImageUrl());
         // ปกติ userId จะไม่เปลี่ยน แต่ถ้าต้องการให้เปลี่ยนได้ก็ใส่เพิ่มครับ
+
+        if (image != null && !image.isEmpty()) {
+            String imageUrl = storageService.uploadImage(image, "pet-images");
+            existingPet.setImageUrl(imageUrl);
+        } else if (request.getImageUrl() != null) {
+            existingPet.setImageUrl(request.getImageUrl()); // ใช้ URL เดิมถ้าไม่ได้เลือกไฟล์ใหม่
+        }
 
         Pet updatedPet = petRepository.save(existingPet); // บันทึกทับตัวเดิม
         return convertToResponse(updatedPet);
