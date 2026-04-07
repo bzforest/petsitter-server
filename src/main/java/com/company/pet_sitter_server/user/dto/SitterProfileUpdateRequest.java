@@ -31,7 +31,7 @@ public class SitterProfileUpdateRequest {
     public String email;
     public String tradeName;
     public String petTypes;
-    public String services;
+    public String servicesDescription;
     public String placeDescription;
     public String idNumber;
     public LocalDate dateOfBirth;
