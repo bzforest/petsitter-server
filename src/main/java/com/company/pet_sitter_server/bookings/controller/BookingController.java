@@ -124,6 +124,22 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.completeBooking(id, sitterId));
     }
 
+    // PATCH /api/bookings/{id}/start-service — Sitter เริ่มงาน -> IN_SERVICE
+    @PatchMapping("/{id}/start-service")
+    public ResponseEntity<BookingResponse> startService(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+
+        String role = jwtUtil.extractRole(
+                httpRequest.getHeader("Authorization").substring(7));
+        if (!"SITTER".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Long sitterId = extractUserIdFromToken(httpRequest);
+        return ResponseEntity.ok(bookingService.startService(id, sitterId));
+    }
+
     // PATCH /api/bookings/{id}/verify-payment — ตรวจสอบผลการชำระเงินกับ Stripe
     @PatchMapping("/{id}/verify-payment")
     public ResponseEntity<BookingResponse> verifyPayment(@PathVariable Long id) {

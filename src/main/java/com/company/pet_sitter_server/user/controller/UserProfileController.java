@@ -34,6 +34,12 @@ public class UserProfileController {
         return ResponseEntity.ok(service.getProfileByEmail(email));
     }
 
+    // 1.1 ดึง owner profile จาก user id (ใช้ใน sitter booking detail: View Profile)
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<UserProfileResponse> getByUserId(@PathVariable Long userId) {
+        return ResponseEntity.ok(service.getByUserId(userId));
+    }
+
     // 2. อัปเดตข้อมูลโปรไฟล์
     @PutMapping(value = "/me", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<com.company.pet_sitter_server.user.entity.UserProfile> updateMyProfile(
