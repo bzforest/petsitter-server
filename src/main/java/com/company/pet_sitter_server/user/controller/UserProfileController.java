@@ -1,6 +1,7 @@
 package com.company.pet_sitter_server.user.controller;
 
 import com.company.pet_sitter_server.user.dto.UserProfileRequest;
+import com.company.pet_sitter_server.user.dto.UserProfilePublicResponse;
 import com.company.pet_sitter_server.user.dto.UserProfileResponse;
 import com.company.pet_sitter_server.user.service.UserProfileService;
 
