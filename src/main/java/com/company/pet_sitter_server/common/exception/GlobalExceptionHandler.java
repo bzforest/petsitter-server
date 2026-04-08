@@ -27,6 +27,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
     }
 
+    // 🔥 2. AUTHORIZATION ERROR — SecurityException → 403
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<Map<String, Object>> handleForbidden(SecurityException ex) {
+        Map<String, Object> res = new HashMap<>();
+        res.put("timestamp", LocalDateTime.now());
+        res.put("status", 403);
+        res.put("error", "Forbidden");
+        res.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(res);
+    }
+
     // 🔥 2. @VALID DTO ERROR
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {

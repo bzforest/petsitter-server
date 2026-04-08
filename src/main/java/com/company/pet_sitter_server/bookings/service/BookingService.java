@@ -10,6 +10,8 @@ import com.company.pet_sitter_server.pets.repository.PetRepository;
 import com.company.pet_sitter_server.user.entity.SitterProfile;
 import com.company.pet_sitter_server.user.repository.SitterProfileRepository;
 import com.company.pet_sitter_server.user.repository.UserRepository;
+import com.company.pet_sitter_server.reviews.repository.ReviewRepository;
+import com.company.pet_sitter_server.reviews.entity.Review;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ public class BookingService {
     private final PetRepository petRepository;
     private final UserRepository userRepository;
     private final StripeService stripeService;
+    private final ReviewRepository reviewRepository;
     private final ZoneId BANGKOK_ZONE = ZoneId.of("Asia/Bangkok");
 
     // ============================================================
@@ -104,11 +107,10 @@ public class BookingService {
         org.springframework.data.domain.Page<Bookings> rawPage = bookingRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         if (rawPage.isEmpty()) return org.springframework.data.domain.Page.empty();
 
-        List<Bookings> checkedBookings = rawPage.stream()
-                .map(this::checkAndAutoCancel)
-                .collect(Collectors.toList());
+        List<Bookings> bookings = rawPage.getContent();
+        autoCancelBatch(bookings);
 
-        List<BookingResponse> content = buildOptimizedResponses(checkedBookings);
+        List<BookingResponse> content = buildOptimizedResponses(bookings);
         return new org.springframework.data.domain.PageImpl<>(content, pageable, rawPage.getTotalElements());
     }
 
@@ -120,11 +122,10 @@ public class BookingService {
         org.springframework.data.domain.Page<Bookings> rawPage = bookingRepository.findBySitterIdOrderByCreatedAtDesc(sitterId, pageable);
         if (rawPage.isEmpty()) return org.springframework.data.domain.Page.empty();
 
-        List<Bookings> checkedBookings = rawPage.stream()
-                .map(this::checkAndAutoCancel)
-                .collect(Collectors.toList());
+        List<Bookings> bookings = rawPage.getContent();
+        autoCancelBatch(bookings);
 
-        List<BookingResponse> content = buildOptimizedResponses(checkedBookings);
+        List<BookingResponse> content = buildOptimizedResponses(bookings);
         return new org.springframework.data.domain.PageImpl<>(content, pageable, rawPage.getTotalElements());
     }
 
@@ -258,9 +259,11 @@ public class BookingService {
         Bookings booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
 
-        if (BookingStatus.COMPLETED.equals(booking.getStatus()) ||
+        if (BookingStatus.CONFIRMED.equals(booking.getStatus()) ||
+                BookingStatus.IN_SERVICE.equals(booking.getStatus()) ||
+                BookingStatus.COMPLETED.equals(booking.getStatus()) ||
                 BookingStatus.CANCELLED.equals(booking.getStatus())) {
-            throw new IllegalArgumentException("Cannot update time for a completed or cancelled booking");
+            throw new IllegalArgumentException("Cannot update datetime for a booking that is already confirmed or completed");
         }
 
         // ดึงเรทราคาปัจจุบันของ Sitter
@@ -310,6 +313,30 @@ public class BookingService {
     // ============================================================
     // Helper — แปลง Entity → BookingResponse DTO
     // ============================================================
+    // ============================================================
+    // Helper — Batch Auto-Cancel (แทนที่ N+1 save() ใน stream)
+    // ============================================================
+    private void autoCancelBatch(List<Bookings> bookings) {
+        java.time.ZonedDateTime nowBangkok = java.time.ZonedDateTime.now(BANGKOK_ZONE);
+        List<Bookings> toCancel = bookings.stream()
+                .filter(b -> BookingStatus.PENDING.equals(b.getStatus()) || BookingStatus.PAID.equals(b.getStatus()))
+                .filter(b -> {
+                    try {
+                        java.time.ZonedDateTime startBangkok = java.time.LocalDateTime
+                                .of(b.getStartDate(), b.getStartTime()).atZone(BANGKOK_ZONE);
+                        return nowBangkok.isAfter(startBangkok.minusHours(1));
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .collect(Collectors.toList());
+
+        if (!toCancel.isEmpty()) {
+            toCancel.forEach(b -> b.setStatus(BookingStatus.CANCELLED));
+            bookingRepository.saveAll(toCancel); // 1 query แทน N queries
+        }
+    }
+
     private Bookings checkAndAutoCancel(Bookings booking) {
         if (BookingStatus.PENDING.equals(booking.getStatus()) || BookingStatus.PAID.equals(booking.getStatus())) {
             try {
@@ -334,11 +361,15 @@ public class BookingService {
         java.util.Set<Long> allPetIds = bookings.stream().flatMap(b -> b.getPetIds().stream())
                 .collect(Collectors.toSet());
 
+        // Batch fetch sitter names AND profile images in one query
         java.util.Map<Long, String> sitterNamesMap = new java.util.HashMap<>();
+        java.util.Map<Long, String> sitterImagesMap = new java.util.HashMap<>();
         sitterProfileRepository.findAllByUserIdIn(sitterIds).forEach(sp -> {
+            Long uid = sp.getUser().getId();
             if (sp.getTradeName() != null && !sp.getTradeName().isEmpty()) {
-                sitterNamesMap.put(sp.getUser().getId(), sp.getTradeName());
+                sitterNamesMap.put(uid, sp.getTradeName());
             }
+            sitterImagesMap.put(uid, sp.getProfileImage());
         });
 
         java.util.Set<Long> missingNameIds = sitterIds.stream()
@@ -354,13 +385,18 @@ public class BookingService {
         java.util.Map<Long, String> petNamesMap = petRepository.findAllById(allPetIds).stream()
                 .collect(Collectors.toMap(p -> p.getId(), p -> p.getName(), (existing, replacement) -> existing));
 
+        java.util.Set<Long> bookingIds = bookings.stream().map(Bookings::getId).collect(Collectors.toSet());
+        java.util.Map<Long, Long> reviewIdsMap = reviewRepository.findAllByBookingIdIn(bookingIds).stream()
+                .collect(Collectors.toMap(Review::getBookingId, Review::getId));
+
         return bookings.stream()
-                .map(b -> toResponseOptimized(b, sitterNamesMap, petNamesMap))
+                .map(b -> toResponseOptimized(b, sitterNamesMap, petNamesMap, reviewIdsMap, sitterImagesMap))
                 .collect(Collectors.toList());
     }
 
     private BookingResponse toResponseOptimized(Bookings booking, java.util.Map<Long, String> sitterNamesMap,
-            java.util.Map<Long, String> petNamesMap) {
+            java.util.Map<Long, String> petNamesMap, java.util.Map<Long, Long> reviewIdsMap,
+            java.util.Map<Long, String> sitterImagesMap) {
         BookingResponse response = new BookingResponse();
         response.setId(booking.getId());
         response.setUserId(booking.getUserId());
@@ -371,11 +407,11 @@ public class BookingService {
         response.setCreatedAt(booking.getCreatedAt());
         response.setPaymentIntentId(booking.getStripePaymentIntentId());
         response.setClientSecret(null);
+        response.setReviewId(reviewIdsMap.get(booking.getId()));
 
         String sitterName = sitterNamesMap.getOrDefault(booking.getSitterId(), "Unknown Sitter");
-        String sitterProfileImage = sitterProfileRepository.findByUserId(booking.getSitterId())
-                .map(SitterProfile::getProfileImage)
-                .orElse(null);
+        // ใช้จาก sitterImagesMap — ไม่ต้อง query เพิ่มเติม
+        String sitterProfileImage = sitterImagesMap.get(booking.getSitterId());
 
         List<String> petNames = booking.getPetIds().stream()
                 .map(id -> petNamesMap.getOrDefault(id, "Unknown Pet"))
@@ -401,7 +437,15 @@ public class BookingService {
     }
 
     private BookingResponse toResponse(Bookings booking, String clientSecret) {
-        BookingResponse res = toResponseOptimized(booking, new java.util.HashMap<>(), new java.util.HashMap<>());
+        java.util.Map<Long, Long> reviewIdsMap = new java.util.HashMap<>();
+        reviewRepository.findByBookingId(booking.getId()).ifPresent(r -> reviewIdsMap.put(booking.getId(), r.getId()));
+
+        // Single booking — fetch sitterImage directly (acceptable for single call)
+        java.util.Map<Long, String> sitterImagesMap = new java.util.HashMap<>();
+        sitterProfileRepository.findByUserId(booking.getSitterId())
+                .ifPresent(sp -> sitterImagesMap.put(booking.getSitterId(), sp.getProfileImage()));
+
+        BookingResponse res = toResponseOptimized(booking, new java.util.HashMap<>(), new java.util.HashMap<>(), reviewIdsMap, sitterImagesMap);
         res.setClientSecret(clientSecret);
 
         if ("Unknown Sitter".equals(res.getSitterName())) {

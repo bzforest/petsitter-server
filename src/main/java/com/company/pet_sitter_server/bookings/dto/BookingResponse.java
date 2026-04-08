@@ -29,4 +29,5 @@ public class BookingResponse {
     private Double totalPrice;
     private String status;
     private OffsetDateTime createdAt;
+    private Long reviewId;
 }
