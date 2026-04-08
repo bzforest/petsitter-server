@@ -22,11 +22,14 @@ public class BookingController {
     private final BookingService bookingService;
     private final JwtUtil jwtUtil;
 
-    // validation
+    // Sync กับ ReviewController — null-safe pattern
     private Long extractUserIdFromToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
-        String token = header.substring(7);
-        return jwtUtil.extractUserId(token);
+        if (header != null && header.startsWith("Bearer ")) {
+            String token = header.substring(7);
+            return jwtUtil.extractUserId(token);
+        }
+        throw new RuntimeException("Unauthorized");
     }
 
     // POST /api/bookings — สร้าง booking ใหม่
@@ -43,8 +46,16 @@ public class BookingController {
 
     // GET /api/bookings/{id} — ดึง booking detail (Success Page)
     @GetMapping("/{id}")
-    public ResponseEntity<BookingResponse> getBookingById(@PathVariable Long id) {
-        return ResponseEntity.ok(bookingService.getBookingById(id));
+    public ResponseEntity<BookingResponse> getBookingById(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        Long userId = extractUserIdFromToken(httpRequest);
+        BookingResponse booking = bookingService.getBookingById(id);
+        // เช็คว่าเป็นเจ้าของ Booking หรือ Sitter ที่รับงาน
+        if (!booking.getUserId().equals(userId) && !booking.getSitterId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(booking);
     }
 
     // GET /api/bookings/user/me — ดึง booking history ของ user
@@ -142,7 +153,15 @@ public class BookingController {
 
     // PATCH /api/bookings/{id}/verify-payment — ตรวจสอบผลการชำระเงินกับ Stripe
     @PatchMapping("/{id}/verify-payment")
-    public ResponseEntity<BookingResponse> verifyPayment(@PathVariable Long id) {
+    public ResponseEntity<BookingResponse> verifyPayment(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        Long userId = extractUserIdFromToken(httpRequest);
+        BookingResponse booking = bookingService.getBookingById(id);
+        // เช็คว่าเป็นเจ้าของ Booking
+        if (!booking.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(bookingService.verifyPayment(id));
     }
 

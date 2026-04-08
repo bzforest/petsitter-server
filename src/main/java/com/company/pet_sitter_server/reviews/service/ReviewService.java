@@ -39,15 +39,15 @@ public class ReviewService {
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         if (!booking.getUserId().equals(currentUserId)) {
-            throw new RuntimeException("You can only review your own bookings");
+            throw new SecurityException("You can only review your own bookings");
         }
 
         if (booking.getStatus() != BookingStatus.COMPLETED) {
-            throw new RuntimeException("You can only review completed services");
+            throw new IllegalArgumentException("You can only review completed services");
         }
 
         if (reviewRepository.existsByBookingId(request.getBookingId())) {
-            throw new RuntimeException("You have already reviewed this booking");
+            throw new IllegalArgumentException("You have already reviewed this booking");
         }
 
         // Save Review
@@ -72,7 +72,7 @@ public class ReviewService {
                 .orElseThrow(() -> new RuntimeException("Review not found"));
 
         if (!review.getUserId().equals(currentUserId)) {
-            throw new RuntimeException("You can only edit your own reviews");
+            throw new SecurityException("You can only edit your own reviews");
         }
 
         review.setRating(request.getRating());
@@ -94,7 +94,7 @@ public class ReviewService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (currentUser.getRole() != Role.ADMIN) {
-            throw new RuntimeException("Only admins can delete reviews");
+            throw new SecurityException("Only admins can delete reviews");
         }
 
         Long sitterId = review.getSitterId();
