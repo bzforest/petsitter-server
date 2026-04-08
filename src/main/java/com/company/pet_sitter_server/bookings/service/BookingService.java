@@ -187,11 +187,31 @@ public class BookingService {
             throw new SecurityException("You are not authorized to complete this booking");
         }
 
-        if (!BookingStatus.CONFIRMED.equals(booking.getStatus())) {
-            throw new IllegalArgumentException("Only confirmed bookings can be completed.");
+        if (!BookingStatus.IN_SERVICE.equals(booking.getStatus())) {
+            throw new IllegalArgumentException("Only in-service bookings can be completed.");
         }
 
         booking.setStatus(BookingStatus.COMPLETED);
+        return toResponse(bookingRepository.save(booking), null);
+    }
+
+    // ============================================================
+    // PATCH /api/bookings/{id}/start-service — Sitter เริ่มงาน (IN_SERVICE)
+    // ============================================================
+    @Transactional
+    public BookingResponse startService(Long id, Long sitterId) {
+        Bookings booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found: " + id));
+
+        if (!booking.getSitterId().equals(sitterId)) {
+            throw new SecurityException("You are not authorized to start this booking");
+        }
+
+        if (!BookingStatus.CONFIRMED.equals(booking.getStatus())) {
+            throw new IllegalArgumentException("Only confirmed bookings can be started.");
+        }
+
+        booking.setStatus(BookingStatus.IN_SERVICE);
         return toResponse(bookingRepository.save(booking), null);
     }
 
@@ -344,13 +364,18 @@ public class BookingService {
         BookingResponse response = new BookingResponse();
         response.setId(booking.getId());
         response.setUserId(booking.getUserId());
+        response.setSitterId(booking.getSitterId());
         response.setPaymentMethod(booking.getPaymentMethod());
         response.setTotalPrice(booking.getTotalPrice());
         response.setStatus(booking.getStatus().name());
+        response.setCreatedAt(booking.getCreatedAt());
         response.setPaymentIntentId(booking.getStripePaymentIntentId());
         response.setClientSecret(null);
 
         String sitterName = sitterNamesMap.getOrDefault(booking.getSitterId(), "Unknown Sitter");
+        String sitterProfileImage = sitterProfileRepository.findByUserId(booking.getSitterId())
+                .map(SitterProfile::getProfileImage)
+                .orElse(null);
 
         List<String> petNames = booking.getPetIds().stream()
                 .map(id -> petNamesMap.getOrDefault(id, "Unknown Pet"))
@@ -361,6 +386,7 @@ public class BookingService {
                 booking.getEndTime().atDate(booking.getEndDate())).toMinutes() / 60.0;
 
         response.setSitterName(sitterName);
+        response.setSitterProfileImage(sitterProfileImage);
         response.setPetNames(petNames);
         response.setPetIds(booking.getPetIds());
         response.setStartDate(booking.getStartDate());

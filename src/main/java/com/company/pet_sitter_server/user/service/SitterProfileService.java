@@ -371,11 +371,14 @@ public class SitterProfileService {
         res.longitude = profile.getLongitude();
         res.gallery = profile.getGallery();
 
-        // Fetch User Profile for fullName and profileImage
+        // Fetch User Profile for fullName.
+        // Keep sitter profile image as primary source; do not overwrite it with user profile image.
         if (profile.getUser() != null) {
             userProfileRepo.findByUserId(profile.getUser().getId()).ifPresent(up -> {
                 res.fullName = up.getFullName();
-                res.profileImage = up.getProfileImage();
+                if ((res.profileImage == null || res.profileImage.isBlank()) && up.getProfileImage() != null && !up.getProfileImage().isBlank()) {
+                    res.profileImage = up.getProfileImage();
+                }
             });
         }
 

@@ -34,14 +34,7 @@ public class UserProfileService {
 
         profileRepo.save(profile);
 
-        UserProfileResponse res = new UserProfileResponse();
-        res.id = profile.getId();
-        res.fullName = profile.getFullName();
-        res.phone = profile.getPhone();
-        res.address = profile.getAddress();
-        res.userId = user.getId();
-
-        return res;
+        return toResponse(profile);
     }
 
     // ==========================================
@@ -58,6 +51,17 @@ public class UserProfileService {
                     newProfile.setUser(user);
                     return profileRepo.save(newProfile); 
                 });
+    }
+
+    public UserProfileResponse getByUserId(Long userId) {
+        UserProfile profile = profileRepo.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("User profile not found"));
+        UserProfileResponse res = toResponse(profile);
+        // Ensure email is always populated even if relation isn't initialized as expected.
+        if (res.email == null || res.email.isBlank()) {
+            res.email = userRepo.findById(userId).map(User::getEmail).orElse(null);
+        }
+        return res;
     }
 
     @org.springframework.transaction.annotation.Transactional
@@ -83,5 +87,19 @@ public class UserProfileService {
         }
 
         return profileRepo.save(profile);
+    }
+
+    private UserProfileResponse toResponse(UserProfile profile) {
+        UserProfileResponse res = new UserProfileResponse();
+        res.id = profile.getId();
+        res.fullName = profile.getFullName();
+        res.email = profile.getUser() != null ? profile.getUser().getEmail() : null;
+        res.phone = profile.getPhone();
+        res.address = profile.getAddress();
+        res.profileImage = profile.getProfileImage();
+        res.idNumber = profile.getIdNumber();
+        res.dateOfBirth = profile.getDateOfBirth();
+        res.userId = profile.getUser() != null ? profile.getUser().getId() : null;
+        return res;
     }
 }
