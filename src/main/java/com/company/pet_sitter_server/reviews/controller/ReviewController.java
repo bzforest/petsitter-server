@@ -73,10 +73,11 @@ public class ReviewController {
     @GetMapping("/sitter/{sitterId}")
     public ResponseEntity<Page<ReviewResponseDTO>> getReviewsBySitter(
             @PathVariable Long sitterId,
+            @RequestParam(required = false) Integer rating,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(reviewService.getReviewsBySitter(sitterId, pageable));
+        return ResponseEntity.ok(reviewService.getReviewsBySitter(sitterId, rating, pageable));
     }
 
     // Get Review by Booking ID
