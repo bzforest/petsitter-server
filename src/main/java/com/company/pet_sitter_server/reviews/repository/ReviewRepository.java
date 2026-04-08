@@ -15,6 +15,8 @@ import com.company.pet_sitter_server.reviews.entity.Review;
 public interface ReviewRepository extends JpaRepository<Review, Long> {
     
     Page<Review> findBySitterId(Long sitterId, Pageable pageable);
+
+    Page<Review> findBySitterIdAndRating(Long sitterId, Integer rating, Pageable pageable);
     
     Optional<Review> findByBookingId(Long bookingId);
     

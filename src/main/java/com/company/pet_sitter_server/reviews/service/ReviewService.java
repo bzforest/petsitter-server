@@ -104,7 +104,11 @@ public class ReviewService {
     }
 
     // Get Reviews by Sitter
-    public Page<ReviewResponseDTO> getReviewsBySitter(Long sitterId, Pageable pageable) {
+    public Page<ReviewResponseDTO> getReviewsBySitter(Long sitterId, Integer rating, Pageable pageable) {
+        if (rating != null) {
+            return reviewRepository.findBySitterIdAndRating(sitterId, rating, pageable)
+                    .map(this::mapToResponse);
+        }
         return reviewRepository.findBySitterId(sitterId, pageable)
                 .map(this::mapToResponse);
     }
