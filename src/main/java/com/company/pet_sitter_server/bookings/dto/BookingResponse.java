@@ -25,4 +25,5 @@ public class BookingResponse {
     private String paymentMethod;
     private Double totalPrice;
     private String status;
+    private Long reviewId;
 }
