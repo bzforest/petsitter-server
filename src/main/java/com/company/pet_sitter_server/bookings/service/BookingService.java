@@ -10,6 +10,8 @@ import com.company.pet_sitter_server.pets.repository.PetRepository;
 import com.company.pet_sitter_server.user.entity.SitterProfile;
 import com.company.pet_sitter_server.user.repository.SitterProfileRepository;
 import com.company.pet_sitter_server.user.repository.UserRepository;
+import com.company.pet_sitter_server.reviews.repository.ReviewRepository;
+import com.company.pet_sitter_server.reviews.entity.Review;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ public class BookingService {
     private final PetRepository petRepository;
     private final UserRepository userRepository;
     private final StripeService stripeService;
+    private final ReviewRepository reviewRepository;
     private final ZoneId BANGKOK_ZONE = ZoneId.of("Asia/Bangkok");
 
     // ============================================================
@@ -354,13 +357,17 @@ public class BookingService {
         java.util.Map<Long, String> petNamesMap = petRepository.findAllById(allPetIds).stream()
                 .collect(Collectors.toMap(p -> p.getId(), p -> p.getName(), (existing, replacement) -> existing));
 
+        java.util.Set<Long> bookingIds = bookings.stream().map(Bookings::getId).collect(Collectors.toSet());
+        java.util.Map<Long, Long> reviewIdsMap = reviewRepository.findAllByBookingIdIn(bookingIds).stream()
+                .collect(Collectors.toMap(Review::getBookingId, Review::getId));
+
         return bookings.stream()
-                .map(b -> toResponseOptimized(b, sitterNamesMap, petNamesMap))
+                .map(b -> toResponseOptimized(b, sitterNamesMap, petNamesMap, reviewIdsMap))
                 .collect(Collectors.toList());
     }
 
     private BookingResponse toResponseOptimized(Bookings booking, java.util.Map<Long, String> sitterNamesMap,
-            java.util.Map<Long, String> petNamesMap) {
+            java.util.Map<Long, String> petNamesMap, java.util.Map<Long, Long> reviewIdsMap) {
         BookingResponse response = new BookingResponse();
         response.setId(booking.getId());
         response.setUserId(booking.getUserId());
@@ -371,6 +378,7 @@ public class BookingService {
         response.setCreatedAt(booking.getCreatedAt());
         response.setPaymentIntentId(booking.getStripePaymentIntentId());
         response.setClientSecret(null);
+        response.setReviewId(reviewIdsMap.get(booking.getId()));
 
         String sitterName = sitterNamesMap.getOrDefault(booking.getSitterId(), "Unknown Sitter");
         String sitterProfileImage = sitterProfileRepository.findByUserId(booking.getSitterId())
@@ -401,7 +409,10 @@ public class BookingService {
     }
 
     private BookingResponse toResponse(Bookings booking, String clientSecret) {
-        BookingResponse res = toResponseOptimized(booking, new java.util.HashMap<>(), new java.util.HashMap<>());
+        java.util.Map<Long, Long> reviewIdsMap = new java.util.HashMap<>();
+        reviewRepository.findByBookingId(booking.getId()).ifPresent(r -> reviewIdsMap.put(booking.getId(), r.getId()));
+
+        BookingResponse res = toResponseOptimized(booking, new java.util.HashMap<>(), new java.util.HashMap<>(), reviewIdsMap);
         res.setClientSecret(clientSecret);
 
         if ("Unknown Sitter".equals(res.getSitterName())) {
