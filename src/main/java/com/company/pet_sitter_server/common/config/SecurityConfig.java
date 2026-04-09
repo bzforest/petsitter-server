@@ -57,6 +57,9 @@ public class SecurityConfig {
                         // 🔐 SITTER only
                         .requestMatchers(HttpMethod.POST, "/api/sitter-profiles/**").hasRole("SITTER")
 
+                        // 🔐 USER only
+                        .requestMatchers(HttpMethod.POST, "/api/reports/**").hasRole("USER")
+
                         // 🔐 ต้อง login (role ใดก็ได้)
                         .requestMatchers("/api/pets/**").authenticated()
                         .requestMatchers("/api/addresses/**").authenticated()
