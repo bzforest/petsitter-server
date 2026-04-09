@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/sitter-profiles/*/approve").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/sitter-profiles/*/reject").hasRole("ADMIN")
+                        .requestMatchers("/api/reports/admin/**").hasRole("ADMIN")
 
                         // 🔐 SITTER only
                         .requestMatchers(HttpMethod.POST, "/api/sitter-profiles/**").hasRole("SITTER")

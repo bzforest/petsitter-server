@@ -12,7 +12,9 @@ public class ReportResponseDTO {
     private Long id;
     private Long bookingId;
     private Long reporterId;
+    private String reporterName;
     private Long reportedSitterId;
+    private String reportedSitterName;
     private String issue;
     private String description;
     private String status;
