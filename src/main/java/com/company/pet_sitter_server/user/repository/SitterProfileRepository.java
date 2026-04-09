@@ -17,4 +17,5 @@ public interface SitterProfileRepository
     java.util.Optional<SitterProfile> findByUserId(Long userId);
 
     List<SitterProfile> findAllByUserIdIn(Collection<Long> userIds);
+    
 }
