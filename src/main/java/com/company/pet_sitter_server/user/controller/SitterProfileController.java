@@ -8,6 +8,7 @@ import com.company.pet_sitter_server.user.service.SitterProfileService;
 
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,7 +24,8 @@ public class SitterProfileController {
         this.service = service;
     }
 
-    // GET profile ของ user ที่ login อยู่
+    // GET profile ของ user ที่ login อยู่ — จำกัดเฉพาะ SITTER เท่านั้น
+    @PreAuthorize("hasRole('SITTER')")
     @GetMapping("/me")
     public ResponseEntity<SitterProfileResponse> getMe(Authentication auth) {
         return ResponseEntity.ok(service.getMe(auth.getName()));

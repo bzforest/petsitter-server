@@ -11,6 +11,7 @@ import lombok.Data;
 public class BookingResponse {
     private Long id;
     private Long userId;
+    private String ownerName;
     private Long sitterId;
     private String sitterProfileImage;
     private String sitterName;

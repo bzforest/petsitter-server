@@ -5,6 +5,7 @@ import com.company.pet_sitter_server.auth.dto.AuthResponse;
 import com.company.pet_sitter_server.auth.dto.GoogleOAuthRequest;
 import com.company.pet_sitter_server.auth.dto.LoginRequest;
 import com.company.pet_sitter_server.auth.dto.RegisterRequest;
+import com.company.pet_sitter_server.common.exception.RoleMismatchException;
 import com.company.pet_sitter_server.common.security.JwtUtil;
 import com.company.pet_sitter_server.enums.Role;
 import com.company.pet_sitter_server.enums.UserStatus;
@@ -163,6 +164,20 @@ public class AuthService {
         // หา user ใน DB ของเรา — อาจมีจาก email/password register ก่อนหน้า
         Optional<User> existingUser = userRepository.findByEmail(email);
 
+        // แปลง intendedRole string → Role enum (null ถ้า invalid หรือไม่ส่งมา)
+        Role intendedRole = null;
+        if (req.getIntendedRole() != null && !req.getIntendedRole().isBlank()) {
+            try {
+                Role parsed = Role.valueOf(req.getIntendedRole().toUpperCase());
+                // ห้าม ADMIN — ป้องกัน user แอบ set role ตัวเองเป็น ADMIN
+                if (parsed != Role.ADMIN) {
+                    intendedRole = parsed;
+                }
+            } catch (IllegalArgumentException ignored) {
+                // intendedRole string ไม่ถูกต้อง → ใช้ default USER
+            }
+        }
+
         User user;
         if (existingUser.isPresent()) {
             user = existingUser.get();
@@ -172,19 +187,27 @@ public class AuthService {
                 throw new IllegalArgumentException("Account is banned");
             }
 
-            // อัปเดต supabaseId ในกรณีที่ user เคย register ด้วย email/password
-            // แล้วภายหลังมา login ด้วย Google ด้วย email เดียวกัน
+            // ตรวจ role mismatch:
+            // ถ้า user เลือก role ที่ไม่ตรงกับ role ใน DB → โยน RoleMismatchException (HTTP 409)
+            // Frontend จะรับ error นี้และแสดง modal แจ้งเตือน พร้อมล้าง token ทั้งหมด
+            if (intendedRole != null && intendedRole != user.getRole()) {
+                throw new RoleMismatchException(user.getRole().name());
+            }
+
+            // อัปเดต supabaseId ถ้ายังไม่มี (เช่น เคย register ด้วย email/password มาก่อน)
             if (user.getSupabaseId() == null) {
                 user.setSupabaseId(supabaseId);
             }
 
         } else {
-            // User ใหม่ที่ login ด้วย Google ครั้งแรก → สร้าง account อัตโนมัติ
-            // Default role = USER (สามารถเปลี่ยนในภายหลังได้)
+            // User ใหม่ → สร้าง account อัตโนมัติ
+            // ใช้ intendedRole ที่ user เลือกจาก modal, ถ้าไม่มีให้ default = USER
+            Role newUserRole = (intendedRole != null) ? intendedRole : Role.USER;
+
             user = new User();
             user.setSupabaseId(supabaseId);
             user.setEmail(email);
-            user.setRole(Role.USER);
+            user.setRole(newUserRole);
             user.setStatus(UserStatus.ACTIVE);
             user.setCreatedAt(LocalDateTime.now());
             user = userRepository.save(user);

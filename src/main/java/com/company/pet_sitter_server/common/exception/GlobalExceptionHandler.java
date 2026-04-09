@@ -14,6 +14,19 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // 🔥 0. ROLE MISMATCH — user เลือก role ไม่ตรงกับที่มีใน DB
+    // ต้องอยู่ก่อน RuntimeException handler เพื่อให้ Spring เลือก handler ที่ specific กว่า
+    @ExceptionHandler(RoleMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleRoleMismatch(RoleMismatchException ex) {
+        Map<String, Object> res = new HashMap<>();
+        res.put("timestamp", LocalDateTime.now());
+        res.put("status", 409);
+        res.put("code", "ROLE_MISMATCH");
+        res.put("accountRole", ex.getAccountRole());
+        res.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(res);
+    }
+
     // 🔥 1. BUSINESS / VALIDATION LOGIC ERROR
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
