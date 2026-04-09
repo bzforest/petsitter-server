@@ -8,11 +8,15 @@ import com.company.pet_sitter_server.common.security.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -42,6 +46,21 @@ public class BookingController {
         request.setUserId(userId);
         BookingResponse response = bookingService.createBooking(request);
         return ResponseEntity.ok(response);
+    }
+
+    // ============================================================
+    // GET /api/bookings/check-availability — เช็คว่า Sitter ว่างไหม
+    // ============================================================
+    @GetMapping("/check-availability")
+    public ResponseEntity<Map<String, Boolean>> checkAvailability(
+            @RequestParam Long sitterId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) java.time.LocalTime startTime,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) java.time.LocalTime endTime) {
+
+        boolean isAvailable = bookingService.isSitterAvailable(sitterId, startDate, startTime, endDate, endTime);
+        return ResponseEntity.ok(Map.of("available", isAvailable));
     }
 
     // GET /api/bookings/{id} — ดึง booking detail (Success Page)

@@ -19,8 +19,7 @@ public class StripeService {
                 .setAutomaticPaymentMethods(
                         PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
                                 .setEnabled(true)
-                                .build()
-                )
+                                .build())
                 .build();
 
         // ส่งคำขอไปที่ Stripe API
