@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/sitter-profiles/**").permitAll()
                         .requestMatchers("/api/webhooks/**").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
 
                         // 🔐 ADMIN only
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
@@ -61,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/addresses/**").authenticated()
                         .requestMatchers("/api/user-profiles/**").authenticated()
                         .requestMatchers("/api/sitter-services/**").authenticated()
+                        .requestMatchers("/api/messages/**").authenticated()
 
                         // endpoints อื่นๆ ที่ไม่ได้ระบุ → ต้อง login
                         .anyRequest().authenticated())
