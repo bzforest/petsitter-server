@@ -33,6 +33,7 @@ public class BookingService {
     private final UserRepository userRepository;
     private final StripeService stripeService;
     private final ReviewRepository reviewRepository;
+    private final com.company.pet_sitter_server.user.repository.UserProfileRepository userProfileRepository;
     private final ZoneId BANGKOK_ZONE = ZoneId.of("Asia/Bangkok");
 
     // ============================================================
@@ -358,6 +359,7 @@ public class BookingService {
 
     private List<BookingResponse> buildOptimizedResponses(List<Bookings> bookings) {
         java.util.Set<Long> sitterIds = bookings.stream().map(Bookings::getSitterId).collect(Collectors.toSet());
+        java.util.Set<Long> ownerIds = bookings.stream().map(Bookings::getUserId).collect(Collectors.toSet());
         java.util.Set<Long> allPetIds = bookings.stream().flatMap(b -> b.getPetIds().stream())
                 .collect(Collectors.toSet());
 
@@ -382,6 +384,22 @@ public class BookingService {
             });
         }
 
+        // Batch fetch owner names from UserProfile
+        java.util.Map<Long, String> ownerNamesMap = new java.util.HashMap<>();
+        userProfileRepository.findAllByUser_IdIn(ownerIds).forEach(up -> {
+            Long uid = up.getUser().getId();
+            if (up.getFullName() != null && !up.getFullName().isBlank()) {
+                ownerNamesMap.put(uid, up.getFullName());
+            }
+        });
+        // Fallback to email for owners without a profile or name
+        java.util.Set<Long> missingOwnerIds = ownerIds.stream()
+                .filter(id -> !ownerNamesMap.containsKey(id))
+                .collect(Collectors.toSet());
+        if (!missingOwnerIds.isEmpty()) {
+            userRepository.findAllByIdIn(missingOwnerIds).forEach(u -> ownerNamesMap.put(u.getId(), u.getEmail()));
+        }
+
         java.util.Map<Long, String> petNamesMap = petRepository.findAllById(allPetIds).stream()
                 .collect(Collectors.toMap(p -> p.getId(), p -> p.getName(), (existing, replacement) -> existing));
 
@@ -390,16 +408,17 @@ public class BookingService {
                 .collect(Collectors.toMap(Review::getBookingId, Review::getId));
 
         return bookings.stream()
-                .map(b -> toResponseOptimized(b, sitterNamesMap, petNamesMap, reviewIdsMap, sitterImagesMap))
+                .map(b -> toResponseOptimized(b, sitterNamesMap, petNamesMap, reviewIdsMap, sitterImagesMap, ownerNamesMap))
                 .collect(Collectors.toList());
     }
 
     private BookingResponse toResponseOptimized(Bookings booking, java.util.Map<Long, String> sitterNamesMap,
             java.util.Map<Long, String> petNamesMap, java.util.Map<Long, Long> reviewIdsMap,
-            java.util.Map<Long, String> sitterImagesMap) {
+            java.util.Map<Long, String> sitterImagesMap, java.util.Map<Long, String> ownerNamesMap) {
         BookingResponse response = new BookingResponse();
         response.setId(booking.getId());
         response.setUserId(booking.getUserId());
+        response.setOwnerName(ownerNamesMap.getOrDefault(booking.getUserId(), "User #" + booking.getUserId()));
         response.setSitterId(booking.getSitterId());
         response.setPaymentMethod(booking.getPaymentMethod());
         response.setTotalPrice(booking.getTotalPrice());
@@ -445,7 +464,19 @@ public class BookingService {
         sitterProfileRepository.findByUserId(booking.getSitterId())
                 .ifPresent(sp -> sitterImagesMap.put(booking.getSitterId(), sp.getProfileImage()));
 
-        BookingResponse res = toResponseOptimized(booking, new java.util.HashMap<>(), new java.util.HashMap<>(), reviewIdsMap, sitterImagesMap);
+        // Fetch owner name for single booking
+        java.util.Map<Long, String> ownerNamesMap = new java.util.HashMap<>();
+        userProfileRepository.findByUser_Id(booking.getUserId()).ifPresent(up -> {
+            if (up.getFullName() != null && !up.getFullName().isBlank()) {
+                ownerNamesMap.put(booking.getUserId(), up.getFullName());
+            }
+        });
+        if (!ownerNamesMap.containsKey(booking.getUserId())) {
+            userRepository.findById(booking.getUserId())
+                    .ifPresent(u -> ownerNamesMap.put(u.getId(), u.getEmail()));
+        }
+
+        BookingResponse res = toResponseOptimized(booking, new java.util.HashMap<>(), new java.util.HashMap<>(), reviewIdsMap, sitterImagesMap, ownerNamesMap);
         res.setClientSecret(clientSecret);
 
         if ("Unknown Sitter".equals(res.getSitterName())) {

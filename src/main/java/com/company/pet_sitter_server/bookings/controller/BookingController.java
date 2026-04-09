@@ -50,12 +50,28 @@ public class BookingController {
             @PathVariable Long id,
             HttpServletRequest httpRequest) {
         Long userId = extractUserIdFromToken(httpRequest);
+        String role = jwtUtil.extractRole(httpRequest.getHeader("Authorization").substring(7));
         BookingResponse booking = bookingService.getBookingById(id);
-        // เช็คว่าเป็นเจ้าของ Booking หรือ Sitter ที่รับงาน
-        if (!booking.getUserId().equals(userId) && !booking.getSitterId().equals(userId)) {
+        // Admin สามารถดู booking ได้ทุกรายการ
+        if (!"ADMIN".equals(role) && !booking.getUserId().equals(userId) && !booking.getSitterId().equals(userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(booking);
+    }
+
+    // GET /api/bookings/admin/sitter/{userId} — Admin ดึงรายการ booking ของ sitter คนนั้น
+    @GetMapping("/admin/sitter/{userId}")
+    public ResponseEntity<org.springframework.data.domain.Page<BookingResponse>> getBookingsBySitterForAdmin(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
+            HttpServletRequest httpRequest) {
+        String role = jwtUtil.extractRole(httpRequest.getHeader("Authorization").substring(7));
+        if (!"ADMIN".equals(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(bookingService.getBookingsBySitter(userId, pageable));
     }
 
     // GET /api/bookings/user/me — ดึง booking history ของ user
