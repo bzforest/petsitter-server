@@ -43,7 +43,8 @@ public class SitterProfile {
 
     private Double ratingAvg = 0.0;
     private String rejectReason;
-    /** Public URL of profile photo (e.g. Supabase) */
+    /** Public URL of profile photo stored in Supabase — URL can exceed 255 chars */
+    @Column(columnDefinition = "text")
     private String profileImage;
     private Double latitude;
     private Double longitude;

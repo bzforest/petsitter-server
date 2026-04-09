@@ -18,9 +18,11 @@ public class UserProfile {
 
     private String phone;
 
+    @Column(columnDefinition = "text")
     private String address;
 
     @JsonProperty("profile_image")
+    @Column(columnDefinition = "text")
     private String profileImage;
 
     private Double latitude;

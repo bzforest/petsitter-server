@@ -95,6 +95,11 @@ public class SitterProfileService {
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        // ป้องกัน USER role สร้าง sitter_profile โดยไม่ได้ตั้งใจ
+        if (user.getRole() != Role.SITTER) {
+            throw new IllegalArgumentException("User is not a sitter");
+        }
+
         SitterProfile profile = repo.findByUserId(user.getId())
                 .orElseGet(() -> {
                     SitterProfile blank = new SitterProfile();
@@ -216,6 +221,11 @@ public class SitterProfileService {
         User user = profile.getUser();
         if (user == null) {
             throw new IllegalArgumentException("Invalid profile");
+        }
+
+        // ป้องกัน USER role ส่ง request approval เข้ามาได้
+        if (user.getRole() != Role.SITTER) {
+            throw new IllegalArgumentException("User is not a sitter");
         }
 
         String fullName = userProfileRepo.findByUser_Id(user.getId())
@@ -371,14 +381,11 @@ public class SitterProfileService {
         res.longitude = profile.getLongitude();
         res.gallery = profile.getGallery();
 
-        // Fetch User Profile for fullName.
-        // Keep sitter profile image as primary source; do not overwrite it with user profile image.
+        // Fetch fullName from user_profiles — profileImage ใช้จาก sitter_profiles เป็นหลัก
+        // ไม่ override profileImage ด้วย user_profiles เพราะ sitter upload รูปไว้ที่ sitter_profiles
         if (profile.getUser() != null) {
             userProfileRepo.findByUserId(profile.getUser().getId()).ifPresent(up -> {
                 res.fullName = up.getFullName();
-                if ((res.profileImage == null || res.profileImage.isBlank()) && up.getProfileImage() != null && !up.getProfileImage().isBlank()) {
-                    res.profileImage = up.getProfileImage();
-                }
             });
         }
 
