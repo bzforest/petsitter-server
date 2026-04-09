@@ -123,11 +123,12 @@ public class ReviewService {
     // Update Sitter Average Rating
     private void updateSitterAverageRating(Long sitterUserId) {
         Double avg = reviewRepository.calculateAverageRatingBySitterId(sitterUserId);
-        if (avg == null) avg = 0.0;
+        if (avg == null)
+            avg = 0.0;
 
         SitterProfile profile = sitterProfileRepository.findByUserId(sitterUserId)
                 .orElseThrow(() -> new RuntimeException("Sitter profile not found"));
-        
+
         profile.setRatingAvg(avg);
         sitterProfileRepository.save(profile);
     }

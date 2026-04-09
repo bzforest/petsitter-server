@@ -19,8 +19,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -46,6 +50,11 @@ public class BookingService {
         // ดึงข้อมูล SitterProfile เพื่อดึง pricePerHour
         SitterProfile sitterProfile = sitterProfileRepository.findById(request.getSitterId())
                 .orElseThrow(() -> new RuntimeException("Sitter Profile not found"));
+
+        // [Double Check] ป้องกันการจองซ้อน
+        validateNoOverlap(sitterProfile.getUser().getId(), 
+                request.getStartDate(), request.getStartTime(),
+                request.getEndDate(), request.getEndTime(), null);
 
         // คำนวณราคาผ่าน helper
         double totalPrice = calculateTotalPrice(
@@ -292,6 +301,11 @@ public class BookingService {
         SitterProfile sitterProfile = sitterProfileRepository.findByUserId(booking.getSitterId())
                 .orElseThrow(() -> new RuntimeException("Sitter Profile not found"));
 
+        // [Double Check] ป้องกันการจองซ้อนตอนอัปเดต โดยเว้น ID ตัวเองไว้
+        validateNoOverlap(booking.getSitterId(), 
+                request.getStartDate(), request.getStartTime(),
+                request.getEndDate(), request.getEndTime(), id);
+
         // คำนวณราคาใหม่
         double newTotalPrice = calculateTotalPrice(
                 request.getStartDate(), request.getStartTime(),
@@ -316,6 +330,56 @@ public class BookingService {
         booking.setTotalPrice(newTotalPrice);
 
         return toResponse(bookingRepository.save(booking), null);
+    }
+
+    // ============================================================
+    // Check Availability — สำหรับใช้เช็คก่อนไปหน้า Booking
+    // ============================================================
+    @Transactional(readOnly = true)
+    public boolean isSitterAvailable(Long sitterId, LocalDate startDate, LocalTime startTime, LocalDate endDate, LocalTime endTime) {
+        try {
+            // รองรับทั้ง SitterProfile ID และ User ID
+            SitterProfile sitterProfile = sitterProfileRepository.findById(sitterId)
+                    .or(() -> sitterProfileRepository.findByUserId(sitterId))
+                    .orElseThrow(() -> new RuntimeException("Sitter Profile not found"));
+
+            validateNoOverlap(sitterProfile.getUser().getId(), startDate, startTime, endDate, endTime, null);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    void validateNoOverlap(Long sitterId, LocalDate startDate, LocalTime startTime, LocalDate endDate, LocalTime endTime, Long excludeBookingId) {
+        LocalDateTime requestedStart = LocalDateTime.of(startDate, startTime);
+        LocalDateTime requestedEnd = LocalDateTime.of(endDate, endTime);
+
+        if (requestedEnd.isBefore(requestedStart) || requestedEnd.isEqual(requestedStart)) {
+            throw new IllegalArgumentException("End time must be after start time");
+        }
+
+        // ดึงรายการจองที่ยัง Active ของ Sitter
+        List<BookingStatus> activeStatuses = Arrays.asList(
+                BookingStatus.PENDING, 
+                BookingStatus.PAID, 
+                BookingStatus.CONFIRMED, 
+                BookingStatus.IN_SERVICE
+        );
+        
+        List<Bookings> existingBookings = bookingRepository.findBySitterIdAndStatusIn(sitterId, activeStatuses);
+
+        for (Bookings b : existingBookings) {
+            // ถ้าเป็นการอัปเดต ให้ข้ามรายการตัวเอง
+            if (excludeBookingId != null && b.getId().equals(excludeBookingId)) continue;
+
+            LocalDateTime existingStart = LocalDateTime.of(b.getStartDate(), b.getStartTime());
+            LocalDateTime existingEnd = LocalDateTime.of(b.getEndDate(), b.getEndTime());
+
+            // Overlap Logic: (StartA < EndB) AND (EndA > StartB)
+            if (requestedStart.isBefore(existingEnd) && requestedEnd.isAfter(existingStart)) {
+                throw new IllegalArgumentException("This sitter is already booked during the selected time period.");
+            }
+        }
     }
 
     // ============================================================
@@ -393,15 +457,17 @@ public class BookingService {
         java.util.Set<Long> allPetIds = bookings.stream().flatMap(b -> b.getPetIds().stream())
                 .collect(Collectors.toSet());
 
-        // Batch fetch sitter names AND profile images in one query
+        // Batch fetch sitter names, profile images, AND profile IDs in one query
         java.util.Map<Long, String> sitterNamesMap = new java.util.HashMap<>();
         java.util.Map<Long, String> sitterImagesMap = new java.util.HashMap<>();
+        java.util.Map<Long, Long> sitterProfileIdsMap = new java.util.HashMap<>();
         sitterProfileRepository.findAllByUserIdIn(sitterIds).forEach(sp -> {
             Long uid = sp.getUser().getId();
             if (sp.getTradeName() != null && !sp.getTradeName().isEmpty()) {
                 sitterNamesMap.put(uid, sp.getTradeName());
             }
             sitterImagesMap.put(uid, sp.getProfileImage());
+            sitterProfileIdsMap.put(uid, sp.getId());
         });
 
         java.util.Set<Long> missingNameIds = sitterIds.stream()
@@ -430,6 +496,21 @@ public class BookingService {
             userRepository.findAllByIdIn(missingOwnerIds).forEach(u -> ownerNamesMap.put(u.getId(), u.getEmail()));
         }
 
+        // [New Additive Logic] Batch fetch sitter full names from UserProfile
+        java.util.Map<Long, String> sitterFullNamesMap = new java.util.HashMap<>();
+        userProfileRepository.findAllByUser_IdIn(sitterIds).forEach(up -> {
+            Long uid = up.getUser().getId();
+            if (up.getFullName() != null && !up.getFullName().isBlank()) {
+                sitterFullNamesMap.put(uid, up.getFullName());
+            }
+        });
+        // Fallback to tradeName or email for sitters without a formal name
+        sitterIds.forEach(id -> {
+            if (!sitterFullNamesMap.containsKey(id)) {
+                sitterFullNamesMap.put(id, sitterNamesMap.getOrDefault(id, "Sitter #" + id));
+            }
+        });
+
         java.util.Map<Long, String> petNamesMap = petRepository.findAllById(allPetIds).stream()
                 .collect(Collectors.toMap(p -> p.getId(), p -> p.getName(), (existing, replacement) -> existing));
 
@@ -438,18 +519,21 @@ public class BookingService {
                 .collect(Collectors.toMap(Review::getBookingId, Review::getId));
 
         return bookings.stream()
-                .map(b -> toResponseOptimized(b, sitterNamesMap, petNamesMap, reviewIdsMap, sitterImagesMap, ownerNamesMap))
+                .map(b -> toResponseOptimized(b, sitterNamesMap, petNamesMap, reviewIdsMap, sitterImagesMap, ownerNamesMap, sitterFullNamesMap, sitterProfileIdsMap))
                 .collect(Collectors.toList());
     }
 
     private BookingResponse toResponseOptimized(Bookings booking, java.util.Map<Long, String> sitterNamesMap,
             java.util.Map<Long, String> petNamesMap, java.util.Map<Long, Long> reviewIdsMap,
-            java.util.Map<Long, String> sitterImagesMap, java.util.Map<Long, String> ownerNamesMap) {
+            java.util.Map<Long, String> sitterImagesMap, java.util.Map<Long, String> ownerNamesMap,
+            java.util.Map<Long, String> sitterFullNamesMap, java.util.Map<Long, Long> sitterProfileIdsMap) {
         BookingResponse response = new BookingResponse();
         response.setId(booking.getId());
         response.setUserId(booking.getUserId());
         response.setOwnerName(ownerNamesMap.getOrDefault(booking.getUserId(), "User #" + booking.getUserId()));
         response.setSitterId(booking.getSitterId());
+        response.setSitterFullName(sitterFullNamesMap.getOrDefault(booking.getSitterId(), "Sitter #" + booking.getSitterId()));
+        response.setSitterProfileId(sitterProfileIdsMap.get(booking.getSitterId()));
         response.setPaymentMethod(booking.getPaymentMethod());
         response.setTotalPrice(booking.getTotalPrice());
         response.setStatus(booking.getStatus().name());
@@ -506,7 +590,26 @@ public class BookingService {
                     .ifPresent(u -> ownerNamesMap.put(u.getId(), u.getEmail()));
         }
 
-        BookingResponse res = toResponseOptimized(booking, new java.util.HashMap<>(), new java.util.HashMap<>(), reviewIdsMap, sitterImagesMap, ownerNamesMap);
+        // [New Additive Logic] Fetch sitter full name for single booking
+        java.util.Map<Long, String> sitterFullNamesMap = new java.util.HashMap<>();
+        userProfileRepository.findByUser_Id(booking.getSitterId()).ifPresent(up -> {
+            if (up.getFullName() != null && !up.getFullName().isBlank()) {
+                sitterFullNamesMap.put(booking.getSitterId(), up.getFullName());
+            }
+        });
+        // [New Additive Logic] Fetch sitter profile ID for fallback if needed
+        java.util.Map<Long, Long> sitterProfileIdsMap = new java.util.HashMap<>();
+        sitterProfileRepository.findByUserId(booking.getSitterId())
+                .ifPresent(sp -> sitterProfileIdsMap.put(booking.getSitterId(), sp.getId()));
+
+        if (!sitterFullNamesMap.containsKey(booking.getSitterId())) {
+            String fallback = sitterProfileRepository.findByUserId(booking.getSitterId())
+                    .map(sp -> sp.getTradeName())
+                    .orElseGet(() -> userRepository.findById(booking.getSitterId()).map(u -> u.getEmail()).orElse("Sitter #" + booking.getSitterId()));
+            sitterFullNamesMap.put(booking.getSitterId(), fallback);
+        }
+
+        BookingResponse res = toResponseOptimized(booking, new java.util.HashMap<>(), new java.util.HashMap<>(), reviewIdsMap, sitterImagesMap, ownerNamesMap, sitterFullNamesMap, sitterProfileIdsMap);
         res.setClientSecret(clientSecret);
 
         if ("Unknown Sitter".equals(res.getSitterName())) {

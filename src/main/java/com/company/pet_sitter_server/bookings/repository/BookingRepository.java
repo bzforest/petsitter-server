@@ -23,4 +23,7 @@ public interface BookingRepository extends JpaRepository<Bookings, Long> {
 
     // ดึง booking ทั้งหมดของ sitter (ใช้สำหรับ Payout - คำนวณรายได้)
     java.util.List<Bookings> findAllBySitterId(Long sitterId);
+
+    // เช็คจองซ้อน (ดึงรายการที่ยัง Active ทั้งหมดของ Sitter)
+    List<Bookings> findBySitterIdAndStatusIn(Long sitterId, List<com.company.pet_sitter_server.enums.BookingStatus> statuses);
 }

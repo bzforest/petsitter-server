@@ -15,6 +15,8 @@ public class BookingResponse {
     private Long sitterId;
     private String sitterProfileImage;
     private String sitterName;
+    private String sitterFullName;
+    private Long sitterProfileId;
     private List<String> petNames;
     private List<Long> petIds;
     private LocalDate startDate;
