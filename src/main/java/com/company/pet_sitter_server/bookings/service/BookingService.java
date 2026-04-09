@@ -4,6 +4,7 @@ import com.company.pet_sitter_server.bookings.dto.BookingRequest;
 import com.company.pet_sitter_server.bookings.dto.BookingResponse;
 import com.company.pet_sitter_server.bookings.dto.StripePaymentResponse;
 import com.company.pet_sitter_server.bookings.entity.Bookings;
+import com.company.pet_sitter_server.bookings.conflict.service.BookingConflictService;
 import com.company.pet_sitter_server.bookings.repository.BookingRepository;
 import com.company.pet_sitter_server.enums.BookingStatus;
 import com.company.pet_sitter_server.pets.repository.PetRepository;
@@ -34,6 +35,7 @@ public class BookingService {
     private final StripeService stripeService;
     private final ReviewRepository reviewRepository;
     private final com.company.pet_sitter_server.user.repository.UserProfileRepository userProfileRepository;
+    private final BookingConflictService bookingConflictService;
     private final ZoneId BANGKOK_ZONE = ZoneId.of("Asia/Bangkok");
 
     // ============================================================
@@ -73,6 +75,16 @@ public class BookingService {
         booking.setPaymentMethod(method.toUpperCase());
         // All bookings start as PENDING (Card will wait for Webhook to become PAID)
         booking.setStatus(BookingStatus.PENDING);
+
+        // Additive conflict check: prevent owner from creating a booking that overlaps
+        // another active booking of the same sitter.
+        bookingConflictService.ensureNoOverlapForSitter(
+                booking.getSitterId(),
+                booking.getStartDate(),
+                booking.getStartTime(),
+                booking.getEndDate(),
+                booking.getEndTime(),
+                null);
 
         // สำหรับ CREDIT_CARD: สร้าง PaymentIntent ที่ Stripe
         String clientSecret = null;
@@ -172,6 +184,15 @@ public class BookingService {
         if (!isCardPaid && !isCashPending) {
             throw new IllegalArgumentException("Cannot confirm: Job is either unpaid (Card) or in an invalid state.");
         }
+
+        // Additive conflict check: prevent sitter from confirming overlapping jobs.
+        bookingConflictService.ensureNoOverlapForSitter(
+                booking.getSitterId(),
+                booking.getStartDate(),
+                booking.getStartTime(),
+                booking.getEndDate(),
+                booking.getEndTime(),
+                booking.getId());
 
         booking.setStatus(BookingStatus.CONFIRMED);
         return toResponse(bookingRepository.save(booking), null);
@@ -277,6 +298,15 @@ public class BookingService {
                 request.getEndDate(), request.getEndTime(),
                 sitterProfile.getPricePerHour(),
                 booking.getPetIds().size());
+
+        // Additive conflict check: prevent changing time into an occupied slot.
+        bookingConflictService.ensureNoOverlapForSitter(
+                booking.getSitterId(),
+                request.getStartDate(),
+                request.getStartTime(),
+                request.getEndDate(),
+                request.getEndTime(),
+                booking.getId());
 
         // อัปเดตข้อมูล
         booking.setStartDate(request.getStartDate());
