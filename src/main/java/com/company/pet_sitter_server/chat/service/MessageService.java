@@ -86,26 +86,45 @@ public class MessageService {
             Long partnerId = msg.getSenderId().equals(userId) ? msg.getReceiverId() : msg.getSenderId();
 
             if (!inboxMap.containsKey(partnerId)) {
-                ChatInboxResponse inbox = new ChatInboxResponse(); // ประกาศแค่รอบเดียวพอครับ
+                ChatInboxResponse inbox = new ChatInboxResponse(); 
                 inbox.partnerId = partnerId;
                 
-                // 🟢 เริ่มต้นด้วยค่า Default (เผื่อหาใครไม่เจอเลย และใช้รูปสุ่มเป็น Default)
-                inbox.partnerName = "User ID: " + partnerId;
-                inbox.partnerAvatar = "https://ui-avatars.com/api/?name=User+" + partnerId + "&background=F3F4F6&color=374151";
+                // 🟢 1. สร้างตัวแปรมารอรับค่า Default
+                String finalName = "User ID: " + partnerId;
+                String finalAvatar = null;
 
-                //  ลองหาใน User Profile ก่อน
+                // 🟢 2. ดึงข้อมูลมาทั้ง 2 ตารางเลย (ดักทางทั้งลูกค้าและพี่เลี้ยง)
                 UserProfile uProfile = userProfileRepository.findByUserId(partnerId).orElse(null); 
+                SitterProfile sProfile = sitterProfileRepository.findByUserId(partnerId).orElse(null);
                 
+                // 🟢 3. ถ้า Partner เป็น "ลูกค้า" (มีข้อมูลใน UserProfile)
                 if (uProfile != null) {
-                    inbox.partnerName = uProfile.getFullName() != null ? uProfile.getFullName() : inbox.partnerName;
-                    inbox.partnerAvatar = uProfile.getProfileImage() != null ? uProfile.getProfileImage() : inbox.partnerAvatar;
-                } else {
-                    // 🟢 ภารกิจนักสืบ: 2. ถ้าไม่เจอ ลองหาใน Sitter Profile (เปลี่ยนเป็น findByUserId)
-                    SitterProfile sProfile = sitterProfileRepository.findByUserId(partnerId).orElse(null);
-                    if (sProfile != null) {
-                        inbox.partnerName = sProfile.getTradeName() != null ? sProfile.getTradeName() : inbox.partnerName;
-                        inbox.partnerAvatar = sProfile.getProfileImage() != null ? sProfile.getProfileImage() : inbox.partnerAvatar;
+                    if (uProfile.getFullName() != null && !uProfile.getFullName().isEmpty()) {
+                        finalName = uProfile.getFullName();
                     }
+                    if (uProfile.getProfileImage() != null && !uProfile.getProfileImage().isEmpty()) {
+                        finalAvatar = uProfile.getProfileImage();
+                    }
+                }
+
+                // 🟢 4. ถ้า Partner เป็น "พี่เลี้ยง" (ให้เอาข้อมูลร้านมาทับข้อมูลลูกค้าซะ)
+                if (sProfile != null) {
+                    if (sProfile.getTradeName() != null && !sProfile.getTradeName().isEmpty()) {
+                        finalName = sProfile.getTradeName();
+                    }
+                    if (sProfile.getProfileImage() != null && !sProfile.getProfileImage().isEmpty()) {
+                        finalAvatar = sProfile.getProfileImage();
+                    }
+                }
+
+                // 🟢 5. จัดเก็บลง Inbox ตัวจริง
+                inbox.partnerName = finalName;
+                
+                if (finalAvatar != null) {
+                    inbox.partnerAvatar = finalAvatar;
+                } else {
+                    // ถ้าไม่มีรูปจริงๆ ให้เอาชื่อไปเจนเป็นรูปตัวอักษรย่อ (เช่น David Beckham -> DB)
+                    inbox.partnerAvatar = "https://ui-avatars.com/api/?name=" + finalName.replace(" ", "+") + "&background=F3F4F6&color=374151";
                 }
                 
                 inbox.lastMessage = msg.getImageUrl() != null ? "[Image]" : msg.getContent();
